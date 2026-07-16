@@ -1,0 +1,429 @@
+# Architecture
+
+QuantForge AI follows a modular, clean-architecture layout so every stage
+of the research pipeline can be developed, tested, and replaced
+independently.
+
+## Layers
+
+- **`app/core/`** — framework-agnostic abstractions (`BaseEngine`,
+  `BaseStrategy`, exception hierarchy, `FeatureFlagManager`, `EventBus`).
+  Nothing here depends on any other `app/` package; every other package
+  depends on `core`, not the reverse.
+- **`app/config/`** — `Settings` (env-driven, via `pydantic-settings`) and
+  `Paths` (resolved, auto-created filesystem locations). No module reads
+  `os.environ` or builds paths directly — everything goes through these.
+- **`app/database/`** — SQLite connection lifecycle (`DatabaseManager`)
+  and schema documentation (`models.py`).
+- **`app/utils/`** — cross-cutting concerns (currently: logging).
+- **`app/data_engine/`** — historical OHLCV data engine (Phase 2, fully
+  implemented). See below.
+- **`app/chart_engine/`** — professional chart visualization engine
+  (Phase 3, fully implemented). See below.
+- **`app/sdl/`** — Strategy Definition Language (Phase 4, fully
+  implemented). See below.
+- **`app/context_engine/`** — Market Context Engine (Phase 5, fully
+  implemented). See below.
+- **`app/indicator_engine/`** — Indicator Engine (Phase 6, fully
+  implemented). See below.
+- **`app/smart_money_engine/`** — Smart Money Engine (Phase 7, fully
+  implemented). See below.
+- **`app/data/`, `app/strategies/`, `app/backtests/`, `app/optimization/`,
+  `app/analytics/`, `app/ai/`, `app/mt5/`** — one package per remaining
+  pipeline stage. Each ships as an interface-shaped placeholder that
+  raises `NotImplementedYetError` — the contracts are real, the
+  implementations are not, until their phase arrives. (`app/ai/
+  indicator_engine.py` is one of these — an unrelated placeholder for a
+  future AI-driven indicator *suggestion* feature, not real calculation;
+  see the Indicator Engine section below.)
+- **`app/api/`** — FastAPI application factory (`create_app`), currently
+  exposing only `/health`.
+- **`app/ui/`** — Streamlit dashboard entrypoint, with feature pages under
+  `app/ui/pages/` (Streamlit's multipage convention).
+
+## Platform Foundations (`app/core/`)
+
+Two cross-cutting systems live in `core` (not any specific engine) so
+every future engine can depend on them without depending on each other,
+per `PROJECT_VISION.md`'s Feature Flag System and Event Driven
+Architecture principles.
+
+- **`FeatureFlagManager`** (`feature_flags.py`) — `register`/`is_enabled`/
+  `enable`/`disable` a `FeatureFlag(name, stage, enabled_by_default)`.
+  `FeatureStage.EXPERIMENTAL` flags cannot default to enabled (enforced at
+  construction) and are always resolved to disabled when
+  `Settings.environment == "production"`, regardless of any override —
+  "production mode must expose only stable features" is structural, not
+  a convention. Resolution order: production lock → runtime override
+  (`enable()`/`disable()`) → `QFAI_FEATURE_<NAME>` environment variable →
+  the flag's default. `status(name)` reports which of those won, for UI
+  display.
+- **`EventBus`** (`event_bus.py`) — `subscribe`/`unsubscribe`/`publish`.
+  Synchronous; a handler that raises is logged and does not block other
+  subscribers. Ships with **zero business events defined** — this phase
+  is the mechanism only, so future engines can add named events and
+  subscribe to each other without editing existing modules.
+  `publish_async` is a documented placeholder (`NotImplementedYetError`).
+
+## Historical Data Engine (`app/data_engine/`)
+
+Turns raw CSV files (standard exports or MetaTrader 5 terminal exports)
+into a clean, standard-schema pandas DataFrame
+(`Datetime, Open, High, Low, Close, Volume, Spread`), and back out to
+CSV/Parquet/SQLite. Each responsibility is a separate, composable class:
+
+- **`CSVImporter`** — parses a CSV (auto-detecting the delimiter and
+  MT5-style `<HEADER>` naming), merges `Date` + `Time` into `Datetime`,
+  and normalizes columns to the standard schema.
+- **`DataValidator`** — read-only checks: invalid/missing timestamps,
+  duplicate candles, OHLC consistency (`High >= Low`, `Open`/`Close`
+  inside the `[Low, High]` range), and an estimate of missing candles
+  against the dataset's (or a given) timeframe. Returns a
+  `ValidationResult`, never raises on dirty data.
+- **`DataCleaner`** — sorts by `Datetime`, drops unparseable rows,
+  de-duplicates, optionally drops OHLC-invalid rows, and applies
+  timezone localization/conversion. Always returns a new DataFrame.
+- **`TimeframeConverter`** — detects the modal candle spacing (`M1` …
+  `MN1`) and resamples between timeframes via pandas `resample`.
+- **`DataExporter`** — writes a DataFrame to CSV, Parquet, or a SQLite
+  table.
+- **`generate_quality_report`** — combines `DataValidator` and
+  `TimeframeConverter` into a `DataQualityReport` (total candles, date
+  range, detected timeframe, missing/duplicate/invalid candle counts,
+  missing values per column).
+- **`DataLoader`** — the facade most callers use: composes the above into
+  `load_csv` / `preview_head` / `preview_tail` / `statistics`.
+
+`app/data/data_loader.py` and `app/data/data_downloader.py` are
+untouched, unimplemented placeholders — they're reserved for a later
+phase's live/multi-provider data sourcing (e.g. pulling directly from a
+running MT5 terminal), a distinct concern from file-based ingestion.
+
+## Chart Engine (`app/chart_engine/`)
+
+Renders any DataFrame following the standard OHLCV column convention
+(`Datetime, Open, High, Low, Close`, optionally `Volume`, `Spread`) into
+an interactive Plotly chart. **Deliberately does not import
+`app.data_engine`** — no module under `app/chart_engine/` references it,
+so the chart engine works with output from the data engine, a future
+live feed, or a hand-built DataFrame, without a hard dependency on any
+one of them. (The Streamlit page composes `data_engine` + `chart_engine`
+together at the UI layer, where that coupling is appropriate.)
+
+- **`CandlestickChart` / `OHLCChart`** — standalone price-pane figures;
+  each also exposes a static `add_trace` for embedding into a shared
+  subplot figure (used by `ChartEngine` and `MultiTimeframeChart`).
+- **`VolumeChart`** — volume bars colored by candle direction (up/down
+  theme colors).
+- **`TimeframeConverter`-equivalent (`timeframe.py`)** — a self-contained
+  `resample_ohlcv` / `TIMEFRAMES` list (M1…MN1). Intentionally a separate,
+  lightweight implementation from `data_engine.TimeframeConverter` for
+  the same independence reason as above.
+- **`MultiTimeframeChart`** — stacks candlestick subplots for a list of
+  timeframes, resampling the input once per panel.
+- **`SessionOverlay`** — Sydney/Tokyo/London/New York background bands
+  (approximate fixed UTC hours, DST not modeled), capped to the most
+  recent `max_days` to bound shape count on long datasets; highlights the
+  currently active session.
+- **`DrawingObject` hierarchy** (`drawing_objects.py`) — `HorizontalLine`,
+  `VerticalLine`, `TrendLine`, `Rectangle`, `TextLabel`, `Arrow`,
+  `RiskRewardBox`, `MeasurementTool`. Each is a plain dataclass that
+  converts itself to Plotly `shapes`/`annotations` dicts; none depend on
+  `ChartEngine` or each other.
+- **`DrawingManager`** — add/remove/list/render a collection of
+  `DrawingObject`s onto any `go.Figure`; independently testable against a
+  bare figure.
+- **`ExportManager`** — PNG/SVG (via the `kaleido` package) and HTML
+  export.
+- **`ChartEngine`** — the facade: `render()` composes price pane + volume
+  + sessions + drawings into one figure; `render_multi_timeframe()`
+  delegates to `MultiTimeframeChart`.
+- **`ChartConfig` / `themes.py`** — every visual/interaction setting
+  (theme, drag mode, crosshair, autoscale, height, fullscreen-approximate
+  height) flows through `ChartConfig`; no chart class hardcodes colors or
+  interaction modes.
+
+"Fullscreen" is approximated as a taller figure (`ChartConfig.fullscreen`)
+since true fullscreen is a browser/UI concern, handled by the Streamlit
+page rather than the chart engine itself.
+
+## Strategy Definition Language (`app/sdl/`)
+
+The single, machine-readable representation of a trading strategy —
+**not Python code, not MQL5 code**. Every future engine that needs
+strategy rules (Indicator Engine, Strategy Builder, Backtesting Engine,
+Optimization Engine, Replay Engine, EA Generator, ...) must consume this
+SDL rather than hardcoding its own strategy representation. This is the
+"Strategies → SDL" row of the Single Source of Truth table in
+`PROJECT_VISION.md`.
+
+- **`StrategyDefinition`** (`models.py`) — a Pydantic schema covering
+  every SDL section (metadata, market, symbols, timeframes, sessions,
+  bias, filters, indicators, entry/exit rules, risk management, position
+  sizing, trade management, news/spread/time/execution rules, scoring
+  rules, alerts, tags, notes). Every model forbids unknown fields, giving
+  structural/type validation and unknown-field detection for free. Full
+  field reference: `docs/sdl/SCHEMA_REFERENCE.md`.
+- **`StrategyParser`** — YAML/JSON text or file → raw `dict`. TOML is a
+  documented future placeholder (raises a clear "not implemented yet"
+  error, not a silent failure).
+- **`StrategyValidator`** — runs `StrategyDefinition` structural
+  validation, then semantic checks Pydantic can't express on its own:
+  duplicate names within a section, circular `depends_on` dependencies
+  (DFS-based cycle detection across indicators/filters/entry/exit
+  rules), and SDL version compatibility. Returns a `ValidationResult`
+  (errors + warnings) rather than raising, mirroring
+  `app.data_engine.validator`'s pattern for consistency across the
+  platform.
+- **`StrategySerializer`** — `StrategyDefinition` ⇄ dict/JSON/YAML, with
+  pretty and canonical (deterministic key order, for diffing/hashing)
+  modes.
+- **`StrategyCompiler`** — validates, then normalizes a document into a
+  `CompiledStrategy`: a dependency-resolved `execution_order` (topological
+  sort over `depends_on`) plus a content checksum. **Never generates
+  Python or MQL5** — compilation produces an internal object, not source
+  code. Implements `BaseEngine` (`run` aliases `compile`), consistent
+  with the constitution's "engine-based architecture" rule.
+- **`StrategyRegistry`** — filesystem-backed CRUD (save/load/delete/list/
+  search/import/export) under `Paths.sdl_library_dir`
+  (`app/sdl/library/`), composing `StrategyParser` + `StrategyValidator`
+  + `StrategySerializer` rather than reimplementing any of them.
+- **`SchemaManager`** — schema introspection (section list, required
+  sections, machine-generated JSON Schema) for the validator, docs, and
+  the Streamlit UI to share.
+- **`VersionManager`** — SDL version support checks and a migration hook;
+  only the identity migration exists today, since there is only one SDL
+  version (`1.0.0`).
+
+`app/sdl/examples/` ships four schema-demonstration strategies (Moving
+Average Cross, RSI Reversal, London Breakout, and a structure-only Smart
+Money Concepts template) — see `docs/sdl/EXAMPLES.md`. None implement
+real trading logic; every `condition`/`type` field is descriptive
+metadata for a future engine to interpret.
+
+`app/config/paths.py` gained one additive field, `sdl_library_dir`
+(`app/sdl/library/`), for the registry's storage location — no existing
+field was changed, preserving backward compatibility.
+
+## Market Context Engine (`app/context_engine/`)
+
+Produces the single, standardized description of "the current market
+moment" every future decision engine must consume, per
+`PROJECT_VISION.md`'s "Context Before Decision" principle: **no trading
+decision engine may directly consume raw market data.** This engine
+**never generates buy/sell signals** — it only describes state.
+
+- **`ContextBuilder`** — assembles a `ContextSnapshot` from scalar facts
+  (symbol, timeframe, current datetime, candle index, symbol spec) that
+  the *caller* already derived from its own data source. It never touches
+  a DataFrame, `app.data_engine`, or any OHLCV structure directly — the
+  intended flow is `Data Engine → caller → ContextBuilder →
+  ContextSnapshot → decision engine`, never `Data Engine → decision
+  engine` directly.
+- **`ContextSnapshot`** and its sections (`MarketContext`, `TimeContext`,
+  `SessionContext`, `SymbolContext`, `TimeframeContext`,
+  `MarketStatePlaceholders`) — Pydantic models with `frozen=True`,
+  giving immutability and hashability for free (verified in
+  `tests/context_engine/test_models.py`), plus JSON-safe serialization
+  via `model_dump(mode="json")`.
+- **`MarketStatePlaceholders`** (trend/volatility/liquidity/structure/
+  bias/momentum) — **all placeholders, no calculation, no trading
+  logic**. Only attached to a snapshot when the experimental
+  `market_state_placeholders` feature flag is enabled (via
+  `FeatureFlagManager`), demonstrating the Feature Flag System gating an
+  unfinished feature area rather than exposing it unconditionally.
+- **`sessions.py`** — an independent Sydney/Tokyo/London/New York UTC
+  session-window table (same architectural trade-off as
+  `chart_engine.sessions`: business/domain code must not depend on a
+  presentation-layer module, so this is a deliberate second, small,
+  independent implementation rather than an import from `chart_engine`).
+- **`ContextValidator`** — semantic checks beyond Pydantic's structural
+  validation: context-schema version compatibility and session-data
+  consistency (e.g. `is_market_open` can't be `True` while `is_weekend`
+  is `True`). Returns a `ValidationResult`, mirroring the
+  `app.sdl.validator` / `app.data_engine.validator` shape.
+- **`ContextSerializer`** / **`ContextRegistry`** / **`ContextVersionManager`**
+  — dict/JSON/YAML serialization, filesystem CRUD under
+  `Paths.context_snapshots_dir` (`app/context_engine/snapshots/`), and
+  version-compatibility/migration-hook, mirroring the equivalent SDL
+  components' shapes (each independently implemented — see the
+  duplication trade-off note above).
+- **`MarketContextEngine`** — the facade: `build_context()` (build +
+  validate, raises `ContextValidationError` on failure), `save`/`load`/
+  `delete`/`list_snapshots()`. Implements `BaseEngine` (`run` aliases
+  `build_context`).
+
+`app/config/paths.py` gained one additive pair of fields,
+`context_engine_dir`/`context_snapshots_dir`
+(`app/context_engine/snapshots/`) — no existing field was changed.
+
+## Indicator Engine (`app/indicator_engine/`)
+
+Calculates technical indicators over standardized OHLCV data. **Only**
+calculates — it never generates buy/sell signals, never contains
+strategy logic, and never executes trades. This is the "Indicators →
+Indicator Engine" row of the Single Source of Truth table in
+`PROJECT_VISION.md`.
+
+- **`BaseIndicator`** — every indicator implements `metadata()`
+  (classmethod, returns `IndicatorMetadata`: name, category, inputs,
+  outputs, parameters, version) and `_calculate()` (raw computation);
+  `compute()` (defined once on the base class) wraps the raw pandas
+  Series output into a standardized `IndicatorResult` — no subclass
+  duplicates that wrapping logic.
+- **`IndicatorContext`** — the standardized input every indicator
+  consumes: an OHLCV DataFrame plus optional symbol/timeframe. Never a
+  strategy rule, never execution logic.
+- **`IndicatorResult`** — immutable (tuple-based, not a mutable
+  DataFrame), serializable (`to_dict()`), and versioned (both the
+  indicator's own `indicator_version` and a separate
+  `result_version` envelope version, mirroring SDL's dual-version
+  pattern).
+- **`IndicatorValidator`** — parameter validation (unknown/missing/type/
+  range, against each indicator's declared `ParameterSpec`s), input
+  validation (required columns present, non-empty), and output
+  validation (produced outputs match `metadata.outputs` exactly).
+- **`IndicatorRegistry`** — register/load/search/list, plus enable/
+  disable implemented via `FeatureFlagManager`: every registered
+  indicator becomes a stable feature flag (enabled by default).
+  Disabling an indicator doesn't unregister it — `IndicatorFactory`/
+  `IndicatorEngine` simply refuse to compute it while disabled. This is
+  the module's concrete instance of "every major engine must support
+  feature flags."
+- **`IndicatorFactory`** — instantiates a configured `BaseIndicator`
+  from the registry; refuses disabled or unregistered names.
+- **`IndicatorSerializer`** — `IndicatorResult`/`IndicatorMetadata` ⇄
+  dict/JSON/YAML.
+- **`IndicatorEngine`** — the facade: `compute()` runs parameter →
+  input → (calculate) → output validation in sequence, raising
+  `IndicatorValidationError` on the first failure. Implements
+  `BaseEngine` (`run` aliases `compute`). Auto-registers all 24
+  built-ins on first use if the registry it was given is empty.
+
+24 built-in indicators, each its own module under
+`app/indicator_engine/indicators/<category>/`, wrapping the `ta` library
+where it provides the calculation (avoiding reimplementing well-tested
+formulas) and computing directly via pandas for the handful `ta` doesn't
+provide (VWMA, Standard Deviation, Typical/Median/Weighted Price, True
+Range — all universal, non-proprietary arithmetic, not strategy logic):
+
+| Category | Indicators |
+|---|---|
+| Moving Average | SMA, EMA, WMA, VWMA |
+| Trend | MACD, ADX, Parabolic SAR |
+| Momentum | RSI, Stochastic RSI, CCI, Williams %R, ROC |
+| Volatility | ATR, Standard Deviation, Bollinger Bands, Keltner Channels |
+| Volume | OBV, VWAP, MFI, Chaikin Money Flow |
+| Price | Typical Price, Median Price, Weighted Close |
+| Range | True Range |
+
+`app/ai/indicator_engine.py` (Phase 1) is untouched and unrelated — a
+placeholder for a *future* AI-driven indicator-suggestion feature, not
+real indicator calculation, which now lives exclusively in
+`app.indicator_engine`.
+
+## Smart Money Engine (`app/smart_money_engine/`)
+
+Detects and describes Smart Money Concepts (SMC) structures over
+standardized OHLCV data. **Only** detects/describes — it never generates
+buy/sell signals, never contains strategy logic, and never executes
+trades.
+
+- **`BaseSMCDetector`** — mirrors `BaseIndicator`'s shape: `metadata()`
+  (classmethod, returns `SMCMetadata`) + `_detect()` (raw detection
+  logic); `detect()` (defined once on the base class) wraps raw findings
+  into a standardized `SMCResult`.
+- **`SMCContext`** — the standardized input: an OHLCV DataFrame plus
+  optional symbol/timeframe, **and** two optional fields that make this
+  phase's "use Data Engine, Context Engine, and Indicator Engine outputs
+  where appropriate" instruction concrete: `indicators: dict[str,
+  IndicatorResult]` (a bag of precomputed indicator results — e.g.
+  `DisplacementDetector` uses a supplied `"ATR"` result as its volatility
+  baseline instead of recomputing one) and `context_snapshot:
+  ContextSnapshot | None`. Never carries strategy rules or execution
+  logic.
+- **`SMCResult`/`SMCDetection`** — unlike `IndicatorResult`'s
+  continuous value-per-candle series, Smart Money structures are
+  discrete: a swing high at one index, a Fair Value Gap spanning a
+  range. `SMCDetection` is a flat, immutable record (`index`, `datetime`,
+  `label`, `direction`, `price` for point events, `top`/`bottom` for
+  zones, optional `end_index`/`end_datetime` for ranges); `SMCResult`
+  holds a tuple of them plus the same versioning/parameters/symbol
+  envelope `IndicatorResult` uses.
+- **`SMCValidator`** — parameter validation (same shape as
+  `IndicatorValidator`), input validation (required columns), and output
+  validation specific to detections: indices in bounds, `direction` in
+  `{None, "bullish", "bearish"}`, `top >= bottom`.
+- **`SMCRegistry`** — register/load/search/list, enable/disable via
+  `FeatureFlagManager` (one stable flag per detector, `smc.<name>`),
+  mirroring `IndicatorRegistry`.
+- **`SMCFactory`**, **`SMCSerializer`**, **`SmartMoneyEngine`** (facade,
+  implements `BaseEngine`, `run` aliases `detect`) — mirror the
+  Indicator Engine's equivalent components.
+- **`helpers.py`** — shared, reusable primitives (`find_swing_highs`/
+  `find_swing_lows`, `average_range`, `previous_period_extreme`) so the
+  32 detectors don't each reimplement the same pandas scans. A few
+  detectors additionally compose *each other* rather than duplicating
+  logic: `LiquidityPoolDetector` composes `EqualHighDetector`/
+  `EqualLowDetector`; `LiquiditySweepDetector` composes
+  `LiquidityPoolDetector`; `BreakerBlockDetector` composes
+  `OrderBlockDetector`; `IFVGDetector`/`BPRDetector` compose
+  `FVGDetector`; `ImpulseMoveDetector` composes `DisplacementDetector`;
+  `RetracementDetector` composes `ImpulseMoveDetector`.
+
+32 built-in detectors, each its own module under
+`app/smart_money_engine/detectors/<category>/`:
+
+| Category | Detectors |
+|---|---|
+| Structure | Swing High, Swing Low, Market Structure, Break Of Structure, Change Of Character, Internal Structure, External Structure |
+| Liquidity | Equal High, Equal Low, Liquidity Pool, Liquidity Sweep |
+| Blocks | Order Block, Breaker Block, Mitigation Block |
+| Imbalance | Fair Value Gap, Inverse Fair Value Gap, Balanced Price Range, Volume Imbalance |
+| Zones | Premium Zone, Discount Zone, Equilibrium |
+| Momentum | Displacement, Impulse Move, Retracement |
+| Levels | Session High, Session Low, Previous Day/Week/Month High, Previous Day/Week/Month Low |
+
+Two deliberate, documented reuse decisions depart from earlier phases'
+"always reimplement independently" precedent, because this phase's own
+spec explicitly directs using sibling-engine outputs:
+
+- `SessionHighDetector`/`SessionLowDetector` import the pure, dependency-
+  free `app.context_engine.sessions` module (`get_active_session`,
+  `to_utc`) to group candles by trading session, rather than a third
+  reimplementation of the Sydney/Tokyo/London/New York UTC windows
+  (`chart_engine` and `context_engine` each already have their own).
+- `DisplacementDetector` accepts an optional precomputed `"ATR"`
+  `IndicatorResult` via `SMCContext.indicators`, falling back to a local
+  rolling-range baseline if none is supplied.
+
+Everything else in `app/smart_money_engine/` remains independent of
+`app.data_engine`/`app.chart_engine` (its own `schema.py` defines the
+OHLCV column contract, matching but not importing theirs).
+
+## Pipeline
+
+```
+Idea → AI Strategy Builder → Historical Data → Auto Backtest →
+Optimization → Analytics → Walk Forward → Monte Carlo →
+Risk Analysis → MT5 EA Generator
+```
+
+Each arrow above corresponds to one or more packages under `app/`. The
+`BaseEngine` interface (`run`, `validate_inputs`) is the contract every
+pipeline-stage engine will implement, so the eventual orchestrator can
+compose them without knowing their internals (dependency inversion).
+
+## Design principles
+
+- **Modular & replaceable** — every capability sits behind a class with a
+  narrow interface; concrete implementations can be swapped without
+  touching callers.
+- **No hardcoded values** — configuration flows through `Settings`, paths
+  through `Paths`.
+- **SOLID** — single-responsibility packages, dependency inversion via
+  `BaseEngine`/`BaseStrategy`, interfaces kept minimal (interface
+  segregation).
+- **Fail loudly, not silently** — unimplemented features raise
+  `NotImplementedYetError` naming the phase that will implement them,
+  rather than returning fake data.

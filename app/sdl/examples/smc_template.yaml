@@ -1,0 +1,81 @@
+# Smart Money Concepts (SMC) Template -- structure only.
+# This is a schema skeleton for a future Smart Money Engine (Phase 6). It
+# declares the *shape* of an SMC-style strategy (structure, liquidity,
+# order blocks) without implementing any market-structure logic -- that
+# belongs to a later, dedicated phase.
+metadata:
+  id: smc-template
+  name: Smart Money Concepts Template
+  description: >
+    Structure-only skeleton for a future Smart Money Concepts strategy.
+    Placeholder indicator/rule names only; no SMC logic is implemented.
+  author: QuantForge AI
+  strategy_version: "0.1.0"
+  category: smart-money-concepts
+
+market:
+  asset_class: forex
+
+symbols: [EURUSD]
+timeframes: [M15, H1, H4]
+primary_timeframe: H1
+
+sessions: [London, "New York"]
+
+bias:
+  direction: both
+  notes: Determined by higher-timeframe market structure (placeholder).
+
+indicators:
+  - name: market_structure
+    type: MARKET_STRUCTURE
+    params: {}
+    notes: Placeholder for future BOS/CHOCH structure detection.
+  - name: order_blocks
+    type: ORDER_BLOCK
+    params: {}
+    depends_on: [market_structure]
+    notes: Placeholder for future order block identification.
+  - name: liquidity_pools
+    type: LIQUIDITY_POOL
+    params: {}
+    notes: Placeholder for future equal-highs/lows liquidity detection.
+  - name: fair_value_gap
+    type: FAIR_VALUE_GAP
+    params: {}
+    notes: Placeholder for future imbalance/FVG detection.
+
+entry_rules:
+  - name: liquidity_sweep_entry
+    condition: price sweeps liquidity_pools then reacts from an order_block
+    depends_on: [liquidity_pools, order_blocks]
+    enabled: false
+    notes: Placeholder -- structure only, not an executable rule yet.
+
+exit_rules:
+  - name: opposing_structure_break
+    condition: market_structure breaks in the opposite direction
+    depends_on: [market_structure]
+    enabled: false
+
+risk_management:
+  max_risk_per_trade_pct: 1.0
+
+position_sizing:
+  method: fixed_risk_pct
+  value: 1.0
+
+trade_management:
+  stop_loss:
+    type: structure
+    notes: Beyond the order block / liquidity sweep (placeholder).
+  take_profit:
+    type: structure
+    notes: Next opposing liquidity pool (placeholder).
+
+tags: [example, smc, smart-money-concepts, structure-only, placeholder]
+notes: >
+  Schema demonstration only. Every indicator/rule here is a named
+  placeholder; no Smart Money Concepts logic is implemented in this
+  phase. Intended to show the SDL schema can represent future strategy
+  families without hardcoding their logic today.

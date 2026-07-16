@@ -1,0 +1,68 @@
+# RSI Reversal -- SDL schema demonstration only.
+# Structure-only example: no trading logic is implemented here.
+metadata:
+  id: rsi-reversal
+  name: RSI Reversal
+  description: Demonstrates an oscillator-based mean-reversion structure.
+  author: QuantForge AI
+  strategy_version: "1.0.0"
+  category: mean-reversion
+
+market:
+  asset_class: forex
+
+symbols: [EURUSD]
+timeframes: [M15]
+primary_timeframe: M15
+
+bias:
+  direction: both
+
+filters:
+  - name: not_ranging_tight
+    condition: recent average true range is above a minimum threshold
+    notes: Avoids trading in extremely quiet, choppy conditions.
+
+indicators:
+  - name: rsi_14
+    type: RSI
+    params: {period: 14}
+
+entry_rules:
+  - name: oversold_reversal
+    condition: rsi_14 crosses above 30 after being below 30
+    depends_on: [rsi_14, not_ranging_tight]
+    notes: Long entry signal.
+  - name: overbought_reversal
+    condition: rsi_14 crosses below 70 after being above 70
+    depends_on: [rsi_14, not_ranging_tight]
+    notes: Short entry signal.
+
+exit_rules:
+  - name: rsi_midline_cross
+    condition: rsi_14 crosses the 50 midline in the opposite direction
+    depends_on: [rsi_14]
+
+risk_management:
+  max_risk_per_trade_pct: 0.5
+  max_daily_trades: 5
+
+position_sizing:
+  method: fixed_risk_pct
+  value: 0.5
+
+trade_management:
+  stop_loss:
+    type: fixed_pips
+    value: 15
+  take_profit:
+    type: risk_reward
+    risk_reward_ratio: 1.5
+
+spread_rules:
+  max_spread_pips: 2.0
+
+tags: [example, mean-reversion, rsi, oscillator]
+notes: >
+  Schema demonstration only. RSI computation and signal evaluation are
+  implemented by future engines, not by the SDL module itself.

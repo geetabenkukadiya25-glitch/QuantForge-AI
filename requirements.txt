@@ -1,0 +1,37 @@
+# ==========================================================
+# QuantForge AI - Python Dependencies
+# ==========================================================
+
+# --- Web / API layer -----------------------------------------------------
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+
+# --- UI layer --------------------------------------------------------------
+streamlit>=1.35.0
+
+# --- Configuration / validation --------------------------------------------
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.1
+PyYAML>=6.0.1  # Strategy Definition Language (SDL) YAML support
+
+# --- Data processing ---------------------------------------------------------
+pandas>=2.2.0
+numpy>=1.26.0
+pyarrow>=15.0.0
+
+# --- Visualization -----------------------------------------------------------
+plotly>=5.22.0
+kaleido>=0.2.1  # static PNG/SVG export for plotly figures
+
+# --- Quantitative research / backtesting --------------------------------------
+vectorbt>=0.26.2
+backtesting>=0.3.3
+ta>=0.11.0
+
+# --- Trading platform integration --------------------------------------------
+MetaTrader5>=5.0.45; platform_system == "Windows"
+
+# --- Testing / quality ---------------------------------------------------------
+pytest>=8.2.0
+pytest-cov>=5.0.0

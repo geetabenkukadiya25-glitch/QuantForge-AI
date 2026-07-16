@@ -1,0 +1,66 @@
+# Moving Average Cross -- SDL schema demonstration only.
+# This document is structure-only: "condition" strings are descriptive
+# text, not executable expressions. No trading logic is implemented here.
+metadata:
+  id: moving-average-cross
+  name: Moving Average Cross
+  description: Demonstrates a simple two-indicator crossover structure.
+  author: QuantForge AI
+  strategy_version: "1.0.0"
+  category: trend-following
+
+market:
+  asset_class: forex
+
+symbols: [EURUSD, GBPUSD]
+timeframes: [H1, H4]
+primary_timeframe: H1
+
+sessions: [London, "New York"]
+
+bias:
+  direction: both
+
+indicators:
+  - name: fast_ma
+    type: SMA
+    params: {period: 20}
+  - name: slow_ma
+    type: SMA
+    params: {period: 50}
+
+entry_rules:
+  - name: golden_cross
+    condition: fast_ma crosses above slow_ma
+    depends_on: [fast_ma, slow_ma]
+    notes: Long entry signal.
+  - name: death_cross
+    condition: fast_ma crosses below slow_ma
+    depends_on: [fast_ma, slow_ma]
+    notes: Short entry signal.
+
+exit_rules:
+  - name: opposite_cross
+    condition: an opposite crossover of fast_ma and slow_ma occurs
+    depends_on: [fast_ma, slow_ma]
+
+risk_management:
+  max_risk_per_trade_pct: 1.0
+  max_open_positions: 1
+
+position_sizing:
+  method: fixed_risk_pct
+  value: 1.0
+
+trade_management:
+  stop_loss:
+    type: atr_multiple
+    value: 2.0
+  take_profit:
+    type: risk_reward
+    risk_reward_ratio: 2.0
+
+tags: [example, trend-following, moving-average]
+notes: >
+  Schema demonstration only. Indicator computation and rule evaluation
+  are implemented by future engines, not by the SDL module itself.

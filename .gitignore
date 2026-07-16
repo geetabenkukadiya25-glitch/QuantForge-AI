@@ -1,0 +1,64 @@
+# ==========================================================
+# QuantForge AI - Git Ignore Rules
+# ==========================================================
+
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Virtual environments --------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# --- Environment / secrets --------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- IDE ---------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+
+# --- Testing / coverage ---------------------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Logs -------------------------------------------------------------------
+*.log
+logs/
+
+# --- Database -----------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Data (large / generated artifacts) ----------------------------------------
+app/data/historical/*
+!app/data/historical/.gitkeep
+app/data/downloads/*
+!app/data/downloads/.gitkeep
+
+# --- Generated strategies / reports / charts -----------------------------------
+app/strategies/generated/*
+!app/strategies/generated/.gitkeep
+app/analytics/reports/*
+!app/analytics/reports/.gitkeep
+app/analytics/charts/*
+!app/analytics/charts/.gitkeep
+
+# --- OS ------------------------------------------------------------------------
+.DS_Store
+Thumbs.db

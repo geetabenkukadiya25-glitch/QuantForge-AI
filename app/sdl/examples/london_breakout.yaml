@@ -1,0 +1,77 @@
+# London Breakout -- SDL schema demonstration only.
+# Structure-only example: no trading logic is implemented here.
+metadata:
+  id: london-breakout
+  name: London Breakout
+  description: Demonstrates a session-based range-breakout structure.
+  author: QuantForge AI
+  strategy_version: "1.0.0"
+  category: breakout
+
+market:
+  asset_class: forex
+
+symbols: [GBPUSD, EURUSD]
+timeframes: [M5, M15]
+primary_timeframe: M15
+
+sessions: [London]
+
+bias:
+  direction: both
+  notes: Direction determined by which side of the Asian range breaks first.
+
+indicators:
+  - name: asian_range_high
+    type: SESSION_RANGE_HIGH
+    params: {session: Tokyo}
+  - name: asian_range_low
+    type: SESSION_RANGE_LOW
+    params: {session: Tokyo}
+
+entry_rules:
+  - name: breakout_long
+    condition: price closes above asian_range_high during the London session
+    depends_on: [asian_range_high]
+  - name: breakout_short
+    condition: price closes below asian_range_low during the London session
+    depends_on: [asian_range_low]
+
+exit_rules:
+  - name: session_end
+    condition: the London session ends
+    notes: Flatten remaining exposure at session close.
+
+risk_management:
+  max_risk_per_trade_pct: 1.0
+  max_open_positions: 1
+  max_daily_trades: 2
+
+position_sizing:
+  method: fixed_risk_pct
+  value: 1.0
+
+trade_management:
+  stop_loss:
+    type: structure
+    notes: Opposite side of the Asian range.
+  take_profit:
+    type: risk_reward
+    risk_reward_ratio: 2.0
+  break_even:
+    enabled: true
+    trigger: 1.0
+
+time_rules:
+  trading_hours: ["07:00-10:00"]
+  trading_days: [Mon, Tue, Wed, Thu, Fri]
+
+news_rules:
+  avoid_high_impact_news: true
+  minutes_before: 30
+  minutes_after: 30
+
+tags: [example, breakout, session, london]
+notes: >
+  Schema demonstration only. Session-range computation and breakout
+  detection are implemented by future engines, not by the SDL module.
