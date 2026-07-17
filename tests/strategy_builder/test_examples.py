@@ -36,12 +36,26 @@ def test_rsi_reversal_builds_successfully(indicator_registry, smc_registry) -> N
     assert any(ref.type == "RSI" for ref in model.indicators)
 
 
-@pytest.mark.parametrize("name", ["london_breakout", "smc_template"])
+def test_london_breakout_builds_successfully(indicator_registry, smc_registry) -> None:
+    """`london_breakout.yaml` was modernized to reference the real, registered
+    Smart Money Engine detector names ("Session High"/"Session Low") instead
+    of the outdated Phase 4 placeholder types ("SESSION_RANGE_HIGH"/
+    "SESSION_RANGE_LOW"), so it now builds like any other real example.
+    """
+    sdl = _load_sdl("london_breakout")
+    context = StrategyContext(sdl_definition=sdl, indicator_registry=indicator_registry, smc_registry=smc_registry)
+    model = StrategyBuilder().build(context)
+    assert model.metadata.id == "london-breakout"
+    assert {ref.type for ref in model.detectors} == {"Session High", "Session Low"}
+    assert len(model.execution_pipeline.steps) > 0
+
+
+@pytest.mark.parametrize("name", ["smc_template"])
 def test_placeholder_examples_fail_strategy_builder_validation(name, indicator_registry, smc_registry) -> None:
-    """These Phase 4 examples use descriptive placeholder indicator types
-    (e.g. "SESSION_RANGE_HIGH", "ORDER_BLOCK") that intentionally don't match
-    any real registered indicator/detector name -- the Strategy Builder
-    should reject them with clear validation errors, not crash.
+    """This Phase 4 example uses descriptive placeholder indicator types
+    (e.g. "ORDER_BLOCK") that intentionally don't match any real registered
+    indicator/detector name -- the Strategy Builder should reject it with
+    clear validation errors, not crash.
     """
     from app.strategy_builder.exceptions import StrategyValidationError
 

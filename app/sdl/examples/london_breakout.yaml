@@ -1,5 +1,9 @@
-# London Breakout -- SDL schema demonstration only.
-# Structure-only example: no trading logic is implemented here.
+# London Breakout -- session-based range-breakout structure.
+# Indicators reference real, registered Smart Money Engine detectors
+# ("Session High" / "Session Low") and build successfully through the
+# Strategy Builder. Entry/exit rule conditions remain descriptive prose,
+# not executable expressions -- the same convention every other SDL
+# example uses (conditions are never interpreted by the SDL module).
 metadata:
   id: london-breakout
   name: London Breakout
@@ -23,11 +27,9 @@ bias:
 
 indicators:
   - name: asian_range_high
-    type: SESSION_RANGE_HIGH
-    params: {session: Tokyo}
+    type: Session High
   - name: asian_range_low
-    type: SESSION_RANGE_LOW
-    params: {session: Tokyo}
+    type: Session Low
 
 entry_rules:
   - name: breakout_long
@@ -73,5 +75,7 @@ news_rules:
 
 tags: [example, breakout, session, london]
 notes: >
-  Schema demonstration only. Session-range computation and breakout
-  detection are implemented by future engines, not by the SDL module.
+  Session-range computation is implemented by the Smart Money Engine's
+  "Session High"/"Session Low" detectors. Entry/exit rule conditions are
+  descriptive prose, not executable expressions, consistent with every
+  other SDL example.
