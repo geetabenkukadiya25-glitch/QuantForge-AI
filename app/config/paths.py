@@ -50,6 +50,9 @@ class Paths:
     research_engine_dir: Path
     research_results_dir: Path
 
+    knowledge_base_dir: Path
+    knowledge_base_entries_dir: Path
+
     analytics_dir: Path
     reports_dir: Path
     charts_dir: Path
@@ -88,6 +91,8 @@ def get_paths() -> Paths:
         replay_results_dir=app_dir / "replay_engine" / "results",
         research_engine_dir=app_dir / "research_engine",
         research_results_dir=app_dir / "research_engine" / "results",
+        knowledge_base_dir=app_dir / "knowledge_base",
+        knowledge_base_entries_dir=app_dir / "knowledge_base" / "entries",
         analytics_dir=app_dir / "analytics",
         reports_dir=app_dir / "analytics" / "reports",
         charts_dir=app_dir / "analytics" / "charts",
@@ -107,6 +112,7 @@ def get_paths() -> Paths:
         paths.validation_results_dir,
         paths.replay_results_dir,
         paths.research_results_dir,
+        paths.knowledge_base_entries_dir,
         paths.reports_dir,
         paths.charts_dir,
         paths.database_dir,
