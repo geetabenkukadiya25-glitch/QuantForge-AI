@@ -15,7 +15,8 @@ Optimization → Analytics → Walk Forward → Monte Carlo →
 Risk Analysis → MT5 EA Generator
 ```
 
-> **Status: Phase 12 (Professional Replay Engine).**
+> **Status: Phase 1-12 complete; Phase 14 (Knowledge Base) submodule 1 —
+> Research & Strategy Intelligence Engine — added.**
 > Phase 1 established the project architecture. Phase 2 added a
 > historical OHLCV data engine. Phase 3 added a professional chart
 > engine. Phase 4 added the Strategy Definition Language. Phase 5 added
@@ -29,14 +30,23 @@ Risk Analysis → MT5 EA Generator
 > existing, unmodified Backtesting Engine. Phase 11 added the Walk
 > Forward & Monte Carlo Validation Engine (`app/validation_engine/`) —
 > validates an already-chosen Optimization Engine candidate via
-> walk-forward windowing and Monte Carlo resampling. Phase 12 adds the
+> walk-forward windowing and Monte Carlo resampling. Phase 12 added the
 > Professional Replay Engine (`app/replay_engine/`) — candle-by-candle
 > playback of historical data (Timeline, Cursor, Player, Controller) that
 > MAY overlay an already-built strategy's indicators/detections and an
-> already-run backtest's trade lifecycle, purely for visualization. It
-> never modifies strategy logic, never optimizes, never executes a
-> trade, and never connects to a broker or MT5. No AI phases are
-> implemented yet. See [docs/ROADMAP.md](docs/ROADMAP.md).
+> already-run backtest's trade lifecycle, purely for visualization.
+> Ahead of Phase 13, the Research & Strategy Intelligence Engine
+> (`app/research_engine/`) was added additively as the first submodule of
+> the already-approved Phase 14 (Knowledge Base) — per explicit user
+> approval, `PROJECT_VISION.md`'s roadmap numbering was left unchanged.
+> It compares and ranks already-completed strategy results (Strategy
+> Builder + Backtesting Engine, required; Optimization/Validation/Replay
+> Engine, optional) into professional statistics, scores, advanced
+> analytics, insights, and recommendations. It is NOT an AI model: it
+> never executes trades, never optimizes, never replays charts, and
+> never connects to a broker or MT5. Phase 13 (AI Strategy Extraction)
+> and the rest of Phase 14 (strategy library, versioning) are not yet
+> implemented. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tech stack
 
@@ -70,6 +80,8 @@ QuantForge AI/
 │   │   └── results/
 │   ├── replay_engine/             # Candle-by-candle historical replay (visualization only)
 │   │   └── results/
+│   ├── research_engine/            # Cross-strategy comparison, ranking, insights (Phase 14 submodule 1)
+│   │   └── results/
 │   ├── data/              # (future phase) live/multi-provider data sourcing
 │   │   ├── historical/
 │   │   └── downloads/
@@ -100,7 +112,8 @@ QuantForge AI/
 │   ├── backtesting_engine/                  # Backtesting Engine unit tests
 │   ├── optimization_engine/                  # Optimization Engine unit tests
 │   ├── validation_engine/                     # Walk Forward & Monte Carlo Validation Engine unit tests
-│   └── replay_engine/                          # Replay Engine unit tests
+│   ├── replay_engine/                          # Replay Engine unit tests
+│   └── research_engine/                         # Research & Strategy Intelligence Engine unit tests
 ├── docs/
 │   └── sdl/                            # SDL specification, schema reference, examples, dev guide
 ├── main.py

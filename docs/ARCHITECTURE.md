@@ -770,6 +770,89 @@ engine's own boundary uses (`tests/replay_engine/test_static_compliance.py`).
   feature-flag-backed registry and dict/JSON/YAML serializer shape every
   prior engine's artifact uses.
 
+## Research & Strategy Intelligence Engine (`app/research_engine/`)
+
+Built additively ahead of Phase 13, as the first submodule of the
+already-approved Phase 14 (Knowledge Base) — per explicit user approval,
+`PROJECT_VISION.md`'s roadmap numbering was left unchanged (see
+`docs/ROADMAP.md`'s Phase 14 section for the conflict/resolution record).
+An institutional research system, **not an AI model**: it consumes ONLY
+already-completed outputs from Strategy Builder, the Backtesting Engine
+(both required), and optionally the Optimization Engine, the Validation
+Engine, and (for visualization only) the Replay Engine. It never
+rebuilds any of them, never executes a trade, never optimizes, never
+replays a chart, and never connects to a broker or MT5.
+
+- **`StrategyRecord`/`ResearchContext`** (`context.py`) — the module's
+  "consume, never rebuild" boundary. `StrategyRecord` bundles one
+  strategy's already-completed `StrategyModel` + `BacktestResult`
+  (required) plus optional `OptimizationResult`/`ValidationResult`/
+  `ReplayResult`; `ResearchContext` is a tuple of these plus a
+  `ResearchConfiguration`.
+- **`ResearchStatisticsEngine`** — reuses `BacktestResult.statistics`
+  (`PerformanceStatistics`) fields directly wherever they already exist
+  (net profit, gross profit/loss, win rate, expectancy, profit factor,
+  recovery factor, Sharpe/Sortino/Calmar, drawdown). Only `loss_rate`,
+  `average_trade`, and the consecutive win/loss streaks are net-new
+  derived values, computed by scanning the same already-produced
+  `BacktestResult.trades` list once (never a new simulation).
+- **`ComparisonEngine`** — organizes per-strategy statistics into a
+  deterministic (`strategy_id`-sorted) comparison table; never
+  recomputes a statistic itself.
+- **`ScoringEngine`/`RankingEngine`** (`ranking.py`) — every formula is
+  an explicitly "framework" calculation (the same documented convention
+  Phase 9's Sharpe/Sortino/Calmar and Phase 11's Robustness/Confidence/
+  Stability scores use). `StrategyScore` (0-100) is a pure function of
+  `ComparisonStatistics`. `ResearchConfidenceScore` reads the consumed
+  `ValidationResult`'s own already-computed Robustness/Confidence/
+  Stability scores (60%) plus trade-count sufficiency (40%) — it never
+  re-runs walk-forward or Monte Carlo. Named `ResearchConfidenceScore`,
+  not `ConfidenceScore`, to avoid colliding with
+  `app.validation_engine.models.ConfidenceScore` (a narrower score it
+  consumes as an input) — the same disambiguation precedent
+  `ValidationCheckResult` established for `ValidationResult`.
+  `InstitutionalQualityScore` composites both plus a documented
+  institutional criteria checklist (min trade count, validated, positive
+  expectancy, drawdown within threshold, profit factor above 1).
+  `RankingEngine` sorts by `ResearchConfiguration.ranking_metric`.
+- **`AnalyticsEngine`** — pure aggregation over already-computed fields:
+  indicator/detector usage (`StrategyModel.indicators`/`.detectors`),
+  symbol/timeframe performance (`BacktestConfiguration`), session
+  performance (`StrategyModel.context_requirement.sessions` — aggregated
+  by each strategy's DECLARED session, not per-trade tagging, since
+  `BacktestResult.trades` doesn't carry a session label per trade yet;
+  see `PROJECT_IDEAS.md`), optimization history
+  (`OptimizationResult.statistics`), walk-forward stability
+  (`ValidationResult.walk_forward_result`/`.robustness_score`), and
+  Monte Carlo robustness (`ValidationResult.monte_carlo_result`/
+  `.confidence_score`) — none of it recomputed.
+- **`InsightsEngine`/`RecommendationEngine`** — pure, rule-based text
+  generation over already-computed statistics/scores. Neither touches a
+  trade, an indicator, or a broker; they only read numbers and produce
+  human-readable strengths/weaknesses/warnings and prioritized
+  recommendations.
+- **`ResearchCompiler`** — the same checksum discipline every prior
+  compiler established: every identity/timestamp field is excluded from
+  the checksum payload before hashing. `metadata.strategy_ids`/
+  `strategy_checksums`/`backtest_result_ids` are sorted by `strategy_id`
+  (not `ResearchContext.records`' input order), so the checksum stays
+  independent of the order records were supplied in — consistent with
+  every other tuple this engine produces.
+- **`ResearchRunner`/`ResearchSession`** — validate → statistics →
+  compare → rank → analyze → derive insights → recommend → compile,
+  mirroring `ValidationRunner`'s raising/non-raising pair.
+- **`ResearchReport`** — comparison table, rankings table, indicator/
+  detector usage, symbol/timeframe/session performance, recommendations,
+  per-strategy insights, and the executive summary, mirroring
+  `ValidationReport`'s presentation-layer role.
+- **`ResearchRegistry`/`ResearchSerializer`** — the same in-memory,
+  feature-flag-backed registry and dict/JSON/YAML serializer shape every
+  prior engine's artifact uses.
+
+The validator's own pass/fail outcome class is named `ResearchCheckResult`,
+not `ResearchResult` — the same disambiguation precedent
+`ValidationCheckResult` established.
+
 ## Pipeline
 
 ```

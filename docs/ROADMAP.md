@@ -314,7 +314,7 @@ pattern seen in Phases 4 and 5. Per explicit user approval, the roadmap
 was amended to swap them (Phase 11 = this engine, Phase 12 = Replay
 Engine) rather than building out of order.
 
-## Phase 12 — Professional Replay Engine ✅ (this phase)
+## Phase 12 — Professional Replay Engine ✅
 
 `app/replay_engine/`: replays historical candles exactly as they
 occurred. **Must** consume Historical Data Engine outputs. **May**
@@ -354,12 +354,67 @@ never expose data past the cursor, satisfying the SYNC requirement),
 Replay Summary). Streamlit "Replay Dashboard" page (replay controls,
 frame viewer, trade viewer, timeline viewer, replay report).
 
+## Phase 14 — Knowledge Base — Submodule 1: Research & Strategy Intelligence Engine ✅ (in progress; this phase)
+
+`app/research_engine/`: an institutional research system, **not an AI
+model**. Consumes ONLY already-completed outputs from Strategy Builder +
+Backtesting Engine (required) and, optionally, the Optimization Engine,
+the Validation Engine, and (for visualization only) the Replay Engine —
+never rebuilds any of them. **Never** executes trades, optimizes
+strategies, replays charts, or connects to a broker or MT5.
+
+**Roadmap note:** this request was labeled "Phase 13," but
+`PROJECT_VISION.md`'s Approved Roadmap defines Phase 13 as **AI Strategy
+Extraction** (YouTube transcript import, AI-driven SDL generation) — an
+unrelated capability. Unlike the Phase 11 numbering conflict (a clean
+two-item swap), this Research Engine had no matching slot in the
+roadmap at all. Per explicit user approval, `PROJECT_VISION.md` was
+**not modified** and no phase was renumbered: this capability was built
+as the first submodule of the already-planned Phase 14 (Knowledge Base
+— "strategy library, versioning, and research history"), since ranking/
+comparing/scoring completed strategies is a natural analytical
+foundation for a future strategy library. The remainder of Phase 14
+(strategy storage, versioning) and Phase 13 (AI Strategy Extraction)
+remain unbuilt.
+
+`ResearchEngine` (facade, implements `BaseEngine`), `ResearchRunner`/
+`ResearchSession` (validate → statistics → compare → rank → analyze →
+derive insights → recommend → compile, mirroring `ValidationRunner`'s
+raising/non-raising pair), `StrategyRecord`/`ResearchContext` (bundles
+one strategy's `StrategyModel` + `BacktestResult`, required, plus
+optional `OptimizationResult`/`ValidationResult`/`ReplayResult`),
+`ResearchValidator` (records-present/duplicate-id/identity-consistency/
+version validation), `ResearchStatisticsEngine` (`ComparisonStatistics`:
+Net/Gross Profit/Loss, Win/Loss Rate, Expectancy, Profit Factor,
+Recovery Factor, Sharpe/Sortino/Calmar, Max/Average Drawdown,
+Consecutive Wins/Losses, Average Trade/Winner/Loser — reusing
+`PerformanceStatistics` directly wherever it already exists),
+`ComparisonEngine` (deterministic cross-strategy comparison table),
+`ScoringEngine` (`StrategyScore`, `ResearchConfidenceScore`,
+`InstitutionalQualityScore` — all documented "framework" formulas, the
+Confidence score reusing the consumed `ValidationResult`'s own
+Robustness/Confidence/Stability scores rather than recomputing them),
+`RankingEngine` (ranks by a configurable metric), `AnalyticsEngine`
+(indicator/detector usage, symbol/session/timeframe performance,
+optimization history, walk-forward stability, Monte Carlo robustness —
+all pure aggregation, never recomputed), `InsightsEngine`/
+`RecommendationEngine` (rule-based strengths/weaknesses/warnings and
+prioritized recommendations), `ResearchCompiler` (content checksum over
+everything except identity/timestamp fields, order-independent, verified
+deterministic), `ResearchResult` (immutable, serializable, versioned,
+hashable — rankings, statistics, analytics, insights, recommendations,
+executive summary), `ResearchReport`, `ResearchRegistry`,
+`ResearchSerializer`. Streamlit "Research Dashboard" page (strategy
+selector, comparison table, rankings, statistics charts, advanced
+analytics, executive summary, insights, recommendations, export report).
+
 ## Future phases
 
 13. **AI Strategy Extraction** — YouTube transcript import, AI strategy
     extraction, human review/approval, SDL document generation.
-14. **Knowledge Base** — strategy library, versioning, and research
-    history.
+14. **Knowledge Base (remainder)** — strategy library storage and
+    versioning (Research & Strategy Intelligence Engine, submodule 1,
+    is complete — see above).
 15. **AI Research Assistant** — AI-assisted trade/report review (assists,
     does not decide, per `PROJECT_VISION.md`).
 16. **EA Generator** — MQL5 Expert Advisor generation from compiled SDL
