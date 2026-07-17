@@ -704,6 +704,72 @@ not `ValidationResult` — that name is reserved for this module's root
 artifact (per the Phase 11 spec's explicit class list), a deliberate
 naming deviation from every prior engine's `validator.py` convention.
 
+## Professional Replay Engine (`app/replay_engine/`)
+
+Replays historical candles exactly as they occurred. It **must** consume
+Historical Data Engine outputs. It **may** consume Strategy Builder,
+Indicator Engine, Smart Money Engine, and Backtesting Engine outputs
+ONLY for visualization. It never modifies strategy logic, never
+optimizes, never executes a trade, and never connects to a broker or
+MT5 — enforced by the same static source-scan discipline every prior
+engine's own boundary uses (`tests/replay_engine/test_static_compliance.py`).
+
+- **`ReplayContext`** — the only REQUIRED input is historical OHLCV data
+  (a `pandas.DataFrame`). `strategy_model`/`indicator_engine`/
+  `smart_money_engine`/`backtest_result` are all optional and consumed
+  ONLY to enrich what gets visualized; a bare, data-only context is a
+  fully valid replay.
+- **`build_timeline()`** — a pure function that slices the configured
+  `start_index`/`end_index` range once and records its frame-by-frame
+  datetimes into an immutable `ReplayTimeline`. This is the only place
+  frame ordering is decided; nothing downstream recomputes it.
+- **`ReplayCursor`** — a mutable position tracker over one
+  `ReplayTimeline`: forward/backward/jump-to-candle/jump-to-time/
+  go-to-beginning/go-to-end. Pure navigation — it never triggers
+  computation and never carries execution logic.
+- **`build_frame_source()`/`build_frame()`** (`frame.py`) — mirrors
+  `TradeSimulator`'s precompute-once discipline: any indicator/detector
+  a supplied `StrategyModel` references is computed ONCE over the full
+  replay slice via the sanctioned `IndicatorEngine`/`SmartMoneyEngine`,
+  never recomputed per frame. Trade-lifecycle markers (open, stop loss,
+  take profit, break even, trailing stop, partial close, close) are read
+  entirely from an already-computed `BacktestResult.trades` — never from
+  independently re-simulating anything.
+- **`ReplayPlayer`** — the play/pause/resume/stop/restart/step/speed
+  state machine. Headless and deterministic: this engine has no
+  real-time timer or thread of its own (a framework placeholder, like
+  Phase 9's `latency_bars`) — `speed` (`0.25x`–`8x`, plus `MAXIMUM`)
+  only governs how many frames one `auto_play_tick()` call advances;
+  wall-clock pacing belongs to whatever UI drives the player.
+- **`ReplayController`** — the object a dashboard drives directly.
+  Combines a `ReplayCursor`, a `ReplayPlayer`, and the precomputed frame
+  source into cursor-scoped views: `synced_candles()` and
+  `synced_trade_markers()` never expose data past the cursor's current
+  index, satisfying the SYNC requirement that the cursor stay in
+  lockstep with the Chart/Indicator/Smart Money/Backtesting views. Also
+  emits `TRADE_OPENED`/`TRADE_CLOSED` events automatically when the
+  cursor crosses a trade marker, and exposes `record_signal()` for a
+  caller-driven `SIGNAL_CREATED` event (Replay never re-runs strategy
+  rules itself, so signal detection is the caller's responsibility).
+- **`ReplayCompiler`** — the same checksum discipline every prior
+  compiler established: every identity/timestamp field
+  (`result_id`, `built_at`, `metadata.replay_id`) is excluded from the
+  checksum payload before hashing. `metadata.data_checksum` is a fast,
+  vectorized `pandas.util.hash_pandas_object` hash of the exact data
+  slice replayed — an identity check, not a general anti-tamper hash.
+- **`ReplayRunner`/`ReplaySession`** — validate → build timeline →
+  precompute → compile, mirroring `ValidationRunner`'s raising/
+  non-raising pair via `execute()`/`try_execute()`. The `ReplayResult`
+  this produces captures the deterministic SETUP of a replay (timeline +
+  statistics); `ReplayRunner.build_controller()` separately builds the
+  interactive `ReplayController` a dashboard drives afterwards — the
+  runner is never re-entered during interactive playback.
+- **`ReplayReport`** — Timeline, Events, and a combined Replay Summary,
+  mirroring `ValidationReport`'s presentation-layer role.
+- **`ReplayRegistry`/`ReplaySerializer`** — the same in-memory,
+  feature-flag-backed registry and dict/JSON/YAML serializer shape every
+  prior engine's artifact uses.
+
 ## Pipeline
 
 ```

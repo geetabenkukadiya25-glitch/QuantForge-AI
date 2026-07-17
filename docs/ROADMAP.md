@@ -264,7 +264,7 @@ for the deferred ideas this surfaced. `app/optimization/optimizer.py`
 (Phase 1) remains an untouched, differently-scoped `NotImplementedYetError`
 placeholder.
 
-## Phase 11 — Walk Forward & Monte Carlo Validation Engine ✅ (this phase)
+## Phase 11 — Walk Forward & Monte Carlo Validation Engine ✅
 
 `app/validation_engine/`: validates an already-chosen Optimization Engine
 candidate via walk-forward windowing and Monte Carlo resampling. **Must
@@ -314,10 +314,48 @@ pattern seen in Phases 4 and 5. Per explicit user approval, the roadmap
 was amended to swap them (Phase 11 = this engine, Phase 12 = Replay
 Engine) rather than building out of order.
 
+## Phase 12 — Professional Replay Engine ✅ (this phase)
+
+`app/replay_engine/`: replays historical candles exactly as they
+occurred. **Must** consume Historical Data Engine outputs. **May**
+consume Strategy Builder, Indicator Engine, Smart Money Engine, and
+Backtesting Engine outputs ONLY for visualization. **Never** modifies
+strategy logic, optimizes, executes trades, or connects to a broker or
+MT5.
+
+`ReplayEngine` (facade, implements `BaseEngine`), `ReplayRunner`/
+`ReplaySession` (validate → build timeline → precompute → compile,
+mirroring `ValidationRunner`'s raising/non-raising pair; also builds an
+interactive `ReplayController` via `build_controller()`),
+`ReplayConfiguration` (scope + default playback assumptions),
+`ReplayContext` (bundles historical data — the only required input —
+plus optional `StrategyModel`/`IndicatorEngine`/`SmartMoneyEngine`/
+`BacktestResult`, all visualization-only), `ReplayValidator`
+(configuration/timeline/frame/data-compatibility/version validation),
+`ReplaySerializer` (dict/JSON/YAML), `ReplayRegistry` (register/load/
+search/enable/disable/list, each result a `FeatureFlagManager` flag),
+`ReplayCompiler` (content checksum over everything except identity/
+timestamp fields, verified deterministic; `data_checksum` via a fast
+vectorized `pandas.util.hash_pandas_object` hash), `ReplayResult`
+(immutable, serializable, versioned, hashable), `ReplayTimeline`
+(deterministic frame-by-frame datetime ordering over the configured
+scope), `ReplayCursor` (forward/backward/jump-to-candle/jump-to-time/
+go-to-beginning/go-to-end), `ReplayFrame` (one point-in-time snapshot:
+OHLCV + indicator values + Smart Money detections + trade-lifecycle
+markers), `ReplayEvent`/`ReplayEventType` (Replay Started/Paused/
+Resumed/Finished, Frame Changed, Trade Opened/Closed, Signal Created),
+`ReplayPlayer` (play/pause/resume/stop/restart/step forward/step
+backward/auto-play; speed 0.25x-8x plus Maximum Speed — a framework
+placeholder since this engine has no real-time timer of its own),
+`ReplayController` (the object a dashboard drives directly:
+cursor-synchronized `synced_candles()`/`synced_trade_markers()` that
+never expose data past the cursor, satisfying the SYNC requirement),
+`ReplayStatistics`, `ReplayReport` (Timeline, Events, and a combined
+Replay Summary). Streamlit "Replay Dashboard" page (replay controls,
+frame viewer, trade viewer, timeline viewer, replay report).
+
 ## Future phases
 
-12. **Replay Engine** — candle-by-candle playback and manual trading
-    simulator (see `PROJECT_VISION.md`'s Market Replay Vision).
 13. **AI Strategy Extraction** — YouTube transcript import, AI strategy
     extraction, human review/approval, SDL document generation.
 14. **Knowledge Base** — strategy library, versioning, and research
