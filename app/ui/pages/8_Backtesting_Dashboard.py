@@ -23,6 +23,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
+from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, save_dataset
 
 st.set_page_config(page_title="Backtesting Dashboard - QuantForge AI", page_icon="📊", layout="wide")
 
@@ -82,7 +83,31 @@ model = build_result.model
 st.sidebar.success(f"Built '{model.metadata.name}'")
 
 st.sidebar.header("2. Historical Data")
-uploaded_file = st.sidebar.file_uploader("Upload a CSV file (standard or MT5 export format)", type=["csv"])
+if has_dataset():
+    metadata = load_metadata()
+    data = load_dataset()
+    st.sidebar.success(f"Using persisted dataset: '{metadata.filename}' ({len(data):,} candles).")
+    if st.sidebar.button("Clear dataset"):
+        clear_dataset()
+        st.rerun()
+else:
+    uploaded_file = st.sidebar.file_uploader("Upload a CSV file (standard or MT5 export format)", type=["csv"])
+    data = None
+    if uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+            tmp.write(uploaded_file.getvalue())
+            tmp_path = Path(tmp.name)
+        try:
+            data = loader.load_csv(tmp_path, clean=True)
+        except CSVFormatError as exc:
+            st.sidebar.error(f"Could not load historical data: {exc}")
+        else:
+            # Persist here too, so every other page picks up this same
+            # dataset without requiring its own upload -- the Historical
+            # Data page isn't the only entry point that can load data.
+            save_dataset(data, filename=uploaded_file.name, statistics=loader.statistics(data))
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
 st.sidebar.header("3. Execution Assumptions")
 symbol = st.sidebar.selectbox("Symbol", model.context_requirement.symbols)
@@ -95,18 +120,8 @@ commission_per_lot = st.sidebar.number_input("Commission per lot", min_value=0.0
 stop_loss_points = st.sidebar.number_input("Stop loss (points, 0 = none)", min_value=0.0, value=0.0, step=0.5)
 take_profit_points = st.sidebar.number_input("Take profit (points, 0 = none)", min_value=0.0, value=0.0, step=0.5)
 
-if uploaded_file is None:
+if data is None:
     st.info("Upload historical OHLCV data in the sidebar to run a backtest.")
-    st.stop()
-
-with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-    tmp.write(uploaded_file.getvalue())
-    tmp_path = Path(tmp.name)
-
-try:
-    data = loader.load_csv(tmp_path, clean=True)
-except CSVFormatError as exc:
-    st.error(f"Could not load historical data: {exc}")
     st.stop()
 
 configuration = BacktestConfiguration(
