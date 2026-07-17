@@ -92,3 +92,56 @@ without explicit approval in a future phase.
   style analysis would need either multiple contexts per call or an
   explicit multi-timeframe wrapper — deferred until a real consumer
   (Strategy Builder) needs it.
+
+---
+
+## From Phase 8 (Strategy Builder)
+
+- **Condition expression grammar.** `RuleReference.condition` still
+  carries SDL's free-text rule strings through untouched — the Strategy
+  Builder resolves *which* indicators/detectors a rule depends on (via
+  `depends_on`) but never parses or interprets the condition text itself
+  (e.g. `"fast_ma crosses above slow_ma"`). A future phase (Strategy
+  Builder extension, or the Backtesting Engine itself) will need a real
+  expression grammar/parser to evaluate these at runtime. Deferred
+  deliberately — inventing one prematurely risks a mismatch with
+  whatever the eventual execution engine actually needs.
+
+- **`StrategyModel` result caching / incremental rebuilds.** Same
+  rationale as the Indicator/Smart Money Engines: `StrategyBuilder.build()`
+  re-resolves and re-compiles from scratch every call. Once a real
+  per-run consumer exists (Backtesting Engine watching an SDL file for
+  changes), a cache keyed on the SDL document's own content hash could
+  skip rebuilding unchanged strategies.
+
+- **Cross-registry name collisions are only checked, not namespaced.**
+  `resolve_components` treats `ambiguous_types` (a `type` registered in
+  both `IndicatorRegistry` and `SMCRegistry`) as a hard validation error.
+  Today this can't happen with the real 24 indicators + 32 detectors (no
+  name overlaps), but as both registries grow, a future SDL revision
+  might want an explicit namespace prefix (e.g. `indicator:RSI` vs.
+  `detector:Order Block`) to disambiguate by construction instead of by
+  validation. Deferred — no real collision exists yet to design against.
+
+- **`StrategyRegistry` persistence.** Like `IndicatorRegistry`/
+  `SMCRegistry`, this phase's `StrategyRegistry` is in-memory only (no
+  filesystem persistence, unlike `app.sdl.StrategyRegistry`'s file-based
+  library). A future phase could add save/load for built `StrategyModel`s
+  (e.g. caching compiled models alongside their source SDL files) once a
+  real consumer needs built models to survive process restarts.
+
+- **Dependency graph visualization.** The Streamlit "Strategy Dependency
+  Graph" view currently renders nodes/edges as plain tables (no new
+  charting dependency was added this phase). A future enhancement could
+  render an actual graph diagram (e.g. via `graphviz` or a D3-based
+  component) for larger strategies where the table view becomes hard to
+  read.
+
+- **Context requirement vs. live `ContextSnapshot` validation.**
+  `ContextRequirement` currently just echoes the SDL document's declared
+  symbols/timeframes/sessions — it never cross-checks against an actual
+  `ContextSnapshot` (e.g. "does the strategy's required symbol match the
+  symbol the current market context describes?"). That validation
+  belongs to whichever future engine actually pairs a `StrategyModel`
+  with a live `ContextSnapshot` at run time (Backtesting Engine or Replay
+  Engine), not the Strategy Builder itself.

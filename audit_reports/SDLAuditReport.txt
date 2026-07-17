@@ -1,0 +1,112 @@
+================================================================================
+QUANTFORGE AI — SDL AUDIT REPORT
+================================================================================
+
+--------------------------------------------------------------------------------
+1. SCHEMA INTEGRITY
+--------------------------------------------------------------------------------
+
+  SDL_VERSION ................................. 1.0.0
+  SUPPORTED_SDL_VERSIONS ....................... ['1.0.0']
+  Top-level sections (22, unchanged since Phase 4):
+    metadata, market, symbols, timeframes, primary_timeframe, sessions,
+    bias, filters, indicators, entry_rules, exit_rules, risk_management,
+    position_sizing, trade_management, news_rules, spread_rules,
+    time_rules, execution_rules, scoring_rules, alerts, tags, notes
+  Required sections: metadata, market, symbols, timeframes
+  Schema corruption check: NONE FOUND (all Pydantic models load and
+    validate correctly; model_json_schema() generates without error)
+
+--------------------------------------------------------------------------------
+2. SDL PARSER
+--------------------------------------------------------------------------------
+
+  app.sdl.StrategyParser: YAML and JSON parsing verified functional.
+  TOML remains a documented future-format placeholder (raises a clear
+  "not implemented yet" error, not a silent failure) -- unchanged.
+
+--------------------------------------------------------------------------------
+3. SDL VALIDATOR
+--------------------------------------------------------------------------------
+
+  app.sdl.StrategyValidator: structural (Pydantic) + semantic (duplicate
+  names within a section, circular depends_on, SDL version compatibility)
+  validation confirmed functional against all 4 bundled examples.
+
+--------------------------------------------------------------------------------
+4. SDL SERIALIZER
+--------------------------------------------------------------------------------
+
+  app.sdl.StrategySerializer: to_dict/to_json/to_yaml (pretty + canonical
+  modes) confirmed functional via existing test suite (98 tests, all
+  passing, including round-trip serialization tests).
+
+--------------------------------------------------------------------------------
+5. SDL VERSION COMPATIBILITY
+--------------------------------------------------------------------------------
+
+  app.sdl.VersionManager confirmed functional. Reused directly (not
+  reimplemented) by app.strategy_builder.StrategyValidator for its own
+  SDL version compatibility check -- this is an intentional, documented
+  cross-engine reuse, sanctioned by Phase 8's own specification (which
+  explicitly lists "SDL Engine" as a sanctioned direct input).
+
+--------------------------------------------------------------------------------
+6. SDL EXAMPLES (app/sdl/examples/)
+--------------------------------------------------------------------------------
+
+  4 example files present, all parse and validate cleanly at the SDL
+  layer (0 errors, 0 warnings each):
+    - moving_average_cross.yaml   VALID
+    - rsi_reversal.yaml           VALID
+    - london_breakout.yaml        VALID
+    - smc_template.yaml           VALID
+
+  Note: "VALID" here means valid *SDL documents* (structurally and
+  semantically correct per the SDL schema). Two of these
+  (london_breakout.yaml, smc_template.yaml) intentionally reference
+  descriptive placeholder indicator "type" strings (e.g.
+  "SESSION_RANGE_HIGH", "ORDER_BLOCK") that do not match any real
+  registered indicator/detector name -- by design, since they were
+  built in Phase 4 purely as SDL schema demonstrations, before the
+  Indicator Engine (Phase 6) or Smart Money Engine (Phase 7) existed.
+  When run through the Strategy Builder (Phase 8), these two correctly
+  fail cross-registry resolution with clear, itemized validation errors
+  -- this is expected, correct behavior, not a defect. See
+  StrategyBuilderAuditReport.txt section 3.
+
+--------------------------------------------------------------------------------
+7. DUPLICATE SDL TYPE CHECK
+--------------------------------------------------------------------------------
+
+  Checked all 4 example documents' `indicators` sections for duplicate
+  `name` values within a single document: NONE FOUND (SDL's own validator
+  already enforces this and was re-verified this audit).
+
+  Checked for duplicate SDL section definitions in app.sdl.models: NONE
+  FOUND (SDL_SECTIONS list contains exactly 22 unique entries).
+
+--------------------------------------------------------------------------------
+8. SDL SCHEMA UNCHANGED VERIFICATION
+--------------------------------------------------------------------------------
+
+  Per the "DO NOT CHANGE SDL" audit instruction, this audit made zero
+  modifications to app/sdl/. All findings above were obtained by reading
+  and executing (never editing) the existing SDL module. git status
+  confirms app/sdl/ has no working-tree changes from this audit session.
+
+--------------------------------------------------------------------------------
+9. OVERALL SDL STATUS
+--------------------------------------------------------------------------------
+
+  SDL schema unchanged ......... PASS
+  SDL parser ...................... PASS
+  SDL validator ...................... PASS
+  SDL serializer ......................... PASS
+  SDL version compatibility ................. PASS
+  SDL examples .................................. PASS (4/4 valid)
+  No schema corruption ............................. PASS
+  No duplicate SDL types .............................. PASS
+
+No source files were modified during this audit.
+================================================================================

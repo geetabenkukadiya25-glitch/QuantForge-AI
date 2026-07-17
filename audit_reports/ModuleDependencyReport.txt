@@ -1,0 +1,150 @@
+================================================================================
+QUANTFORGE AI — MODULE DEPENDENCY REPORT
+================================================================================
+
+--------------------------------------------------------------------------------
+1. FILE INVENTORY PER ENGINE
+--------------------------------------------------------------------------------
+
+  app/core/               6 files   (BaseEngine, BaseStrategy, exceptions,
+                                      FeatureFlagManager, EventBus)
+  app/config/              3 files   (Settings, Paths)
+  app/database/             3 files   (DatabaseManager, models)
+  app/utils/                 2 files   (logger)
+  app/data_engine/            11 files  (Phase 2, complete)
+  app/chart_engine/            16 files  (Phase 3, complete)
+  app/sdl/                      10 files  (Phase 4, complete)
+  app/context_engine/            10 files  (Phase 5, complete)
+  app/indicator_engine/            44 files  (Phase 6, complete)
+  app/smart_money_engine/            56 files  (Phase 7, complete)
+  app/strategy_builder/                12 files  (Phase 8, complete)
+  -------------------------------------------------------------
+  Total implemented engine files:        193
+
+  app/ai/                  5 files   (Phase 1 placeholders, unimplemented)
+  app/data/                 3 files   (Phase 1 placeholders, unimplemented)
+  app/strategies/            2 files   (Phase 1 placeholder, unimplemented)
+  app/backtests/               4 files   (Phase 1 placeholders, unimplemented)
+  app/optimization/              2 files   (Phase 1 placeholder, unimplemented)
+  app/analytics/                   3 files   (Phase 1 placeholders, unimplemented)
+  app/mt5/                            4 files   (Phase 1 placeholders, unimplemented)
+  -------------------------------------------------------------
+  Total placeholder files:               23
+
+  Total app/ source lines:  11,393
+  Total tests/ source lines: 4,187
+
+--------------------------------------------------------------------------------
+2. CROSS-ENGINE IMPORT GRAPH (grep-verified: `from app.<engine>` occurrences)
+--------------------------------------------------------------------------------
+
+  app.data_engine        imports from other engines: NONE
+  app.chart_engine       imports from other engines: NONE
+  app.sdl                imports from other engines: NONE
+  app.context_engine     imports from other engines: NONE
+  app.indicator_engine   imports from other engines: NONE
+  app.smart_money_engine imports from other engines: app.context_engine,
+                                                       app.indicator_engine
+  app.strategy_builder   imports from other engines: app.sdl,
+                                                       app.indicator_engine,
+                                                       app.smart_money_engine
+
+  Topological build order (leaves first):
+    1. app.data_engine, app.chart_engine, app.sdl, app.context_engine,
+       app.indicator_engine   (mutually independent)
+    2. app.smart_money_engine (depends on #1's context_engine, indicator_engine)
+    3. app.strategy_builder   (depends on #1's sdl, indicator_engine,
+                                and #2's smart_money_engine)
+
+--------------------------------------------------------------------------------
+3. CIRCULAR DEPENDENCY CHECK
+--------------------------------------------------------------------------------
+
+  Checked: does any engine import FROM app.strategy_builder?      NONE FOUND
+  Checked: does any engine (other than strategy_builder) import
+           FROM app.smart_money_engine?                            NONE FOUND
+  Checked: does any engine import FROM app.indicator_engine that
+           app.indicator_engine itself depends on?                  N/A (leaf)
+  Checked: does any engine import FROM app.context_engine that
+           app.context_engine itself depends on?                    N/A (leaf)
+
+  RESULT: No circular dependencies detected anywhere in the codebase.
+
+--------------------------------------------------------------------------------
+4. IMPORT / COMPILE VERIFICATION
+--------------------------------------------------------------------------------
+
+  python -m py_compile <every .py file under app/>    RESULT: 0 errors
+  Recursive import of every submodule in every package
+  (app.core, app.config, app.database, app.utils, app.data_engine,
+   app.chart_engine, app.sdl, app.context_engine, app.indicator_engine,
+   app.smart_money_engine, app.strategy_builder, app.data, app.strategies,
+   app.backtests, app.optimization, app.analytics, app.ai, app.mt5,
+   app.api)                                            RESULT: 0 errors
+  Total time to import all packages recursively:       2.175 seconds
+
+--------------------------------------------------------------------------------
+5. ORPHAN MODULE CHECK
+--------------------------------------------------------------------------------
+
+  All Phase 1 placeholder modules (app/ai, app/data, app/strategies,
+  app/backtests, app/optimization, app/analytics, app/mt5) are intentional,
+  documented future-phase stubs -- not orphans. Each raises
+  NotImplementedYetError with a phase reference (see DocumentationAudit.txt
+  for a note on stale phase-number references in these error strings --
+  cosmetic only, does not affect function).
+
+  No unreferenced/dead .py files were found outside the above categories.
+
+--------------------------------------------------------------------------------
+6. DUPLICATE BUILDER / COMPILER / EXECUTION PATH CHECK
+--------------------------------------------------------------------------------
+
+  StrategyBuilder classes found:
+    - app.strategies.strategy_builder.StrategyBuilder  (Phase 1 placeholder;
+      builds BaseStrategy from an arbitrary dict spec; raises
+      NotImplementedYetError; UNCHANGED since Phase 1)
+    - app.strategy_builder.builder.StrategyBuilder      (Phase 8, real,
+      SDL-driven; builds StrategyModel)
+  These are DIFFERENT classes with DIFFERENT purposes in DIFFERENT modules
+  (different Python identity: app.strategies vs app.strategy_builder).
+  This is an intentional, documented distinction (see ARCHITECTURE.md
+  "Strategy Builder" section) -- not a duplicate implementation of the
+  same concept. Only ONE of them is real/functional (Phase 8's).
+
+  IndicatorEngine classes found:
+    - app.ai.indicator_engine.IndicatorEngine  (Phase 1 placeholder;
+      raises NotImplementedYetError; UNCHANGED since Phase 1)
+    - app.indicator_engine.engine.IndicatorEngine  (Phase 6, real)
+  Same pattern: intentional, documented, non-conflicting.
+
+  StrategyCompiler classes found:
+    - app.sdl.compiler.StrategyCompiler         (Phase 4; compiles
+      StrategyDefinition -> CompiledStrategy)
+    - app.strategy_builder.compiler.StrategyCompiler  (Phase 8; compiles
+      resolved SDL+registry references -> StrategyModel)
+  Different input/output types, different responsibilities, both real
+  and both currently in active use by their respective phases. Not a
+  duplicate -- SDL's compiler produces a normalized SDL-only artifact;
+  Strategy Builder's compiler produces the cross-engine StrategyModel
+  that consumes SDL's output as one of its inputs.
+
+  RESULT: No unintentional duplicate builders, compilers, or execution
+  paths found. All apparent "duplicates" are intentional, documented,
+  differently-scoped classes in different packages.
+
+--------------------------------------------------------------------------------
+7. OVERALL DEPENDENCY STATUS
+--------------------------------------------------------------------------------
+
+  Circular dependencies ................... NONE (PASS)
+  Broken imports ........................... NONE (PASS)
+  Missing imports ........................... NONE (PASS)
+  Invalid references ......................... NONE (PASS)
+  Orphan modules ............................... NONE (PASS)
+  Duplicate execution paths ....................... NONE (PASS)
+  Duplicate builders (unintentional) ................ NONE (PASS)
+  Duplicate compilers (unintentional) .................. NONE (PASS)
+
+No source files were modified during this audit.
+================================================================================

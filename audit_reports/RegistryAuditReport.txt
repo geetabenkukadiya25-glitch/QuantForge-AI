@@ -1,0 +1,122 @@
+================================================================================
+QUANTFORGE AI — REGISTRY AUDIT REPORT
+================================================================================
+
+--------------------------------------------------------------------------------
+1. INDICATOR REGISTRY (app.indicator_engine.IndicatorRegistry)
+--------------------------------------------------------------------------------
+
+  ALL_INDICATORS (declared list) count ......... 24
+  Registered after register_builtins() ......... 24
+  Duplicate names ............................... NONE
+  Categories (7): Moving Average, Trend, Momentum, Volatility, Volume,
+                  Price, Range
+
+  Indicators (24):
+    Moving Average : SMA, EMA, WMA, VWMA
+    Trend          : MACD, ADX, Parabolic SAR
+    Momentum       : RSI, Stochastic RSI, CCI, Williams %R, ROC
+    Volatility     : ATR, Standard Deviation, Bollinger Bands,
+                     Keltner Channels
+    Volume         : OBV, VWAP, MFI, Chaikin Money Flow
+    Price          : Typical Price, Median Price, Weighted Close
+    Range          : True Range
+
+  Lookup verification:
+    load("SMA")                     -> resolves correctly
+    is_enabled("SMA")                -> True (default)
+    disable("SMA") / is_enabled       -> False (correctly gated)
+    enable("SMA") / is_enabled         -> True (correctly restored)
+    load("NOT_A_REAL_INDICATOR")        -> raises IndicatorNotFoundError
+                                            (correct failure behavior)
+
+  Feature flag integration: every registered indicator becomes a stable
+  FeatureFlagManager flag ("indicator.<name>"), enabled by default.
+  Verified: disabling via registry correctly propagates to feature flag
+  state and blocks IndicatorFactory.create().
+
+--------------------------------------------------------------------------------
+2. SMART MONEY (SMC) REGISTRY (app.smart_money_engine.SMCRegistry)
+--------------------------------------------------------------------------------
+
+  ALL_DETECTORS (declared list) count .......... 32
+  Registered after register_builtins() .......... 32
+  Duplicate names ................................ NONE
+  Categories (7): Structure, Liquidity, Blocks, Imbalance, Zones,
+                  Momentum, Levels
+
+  Detectors (32):
+    Structure  : Swing High, Swing Low, Market Structure,
+                 Break Of Structure, Change Of Character,
+                 Internal Structure, External Structure
+    Liquidity  : Equal High, Equal Low, Liquidity Pool, Liquidity Sweep
+    Blocks     : Order Block, Breaker Block, Mitigation Block
+    Imbalance  : Fair Value Gap, Inverse Fair Value Gap,
+                 Balanced Price Range, Volume Imbalance
+    Zones      : Premium Zone, Discount Zone, Equilibrium
+    Momentum   : Displacement, Impulse Move, Retracement
+    Levels     : Session High, Session Low, Previous Day High,
+                 Previous Day Low, Previous Week High, Previous Week Low,
+                 Previous Month High, Previous Month Low
+
+  Feature flag integration: every registered detector becomes a stable
+  FeatureFlagManager flag ("smc.<name>"), enabled by default. Same
+  disable/enable/missing-lookup behavior verified as IndicatorRegistry.
+
+--------------------------------------------------------------------------------
+3. CROSS-REGISTRY CONSISTENCY
+--------------------------------------------------------------------------------
+
+  Name overlap between IndicatorRegistry (24 names) and SMCRegistry
+  (32 names): NONE. This is important -- app.strategy_builder.resolution
+  resolves an SDL IndicatorSpec.type against IndicatorRegistry first,
+  then SMCRegistry; a name present in both would be flagged "ambiguous"
+  by StrategyValidator. With the current 24+32 real components, this
+  can never happen (verified empty-set intersection). The "ambiguous"
+  code path was still exercise-tested using synthetic fake registries
+  in tests/strategy_builder/test_resolution.py, confirming the guard
+  works even though it's currently unreachable with real data.
+
+--------------------------------------------------------------------------------
+4. STRATEGY BUILDER'S OWN REGISTRY (app.strategy_builder.StrategyRegistry)
+--------------------------------------------------------------------------------
+
+  Distinct from app.sdl.StrategyRegistry (filesystem-backed SDL document
+  library) -- this registry holds built, in-memory StrategyModel objects,
+  keyed by the source SDL strategy id. Same register/load/search/enable/
+  disable/list shape as IndicatorRegistry/SMCRegistry.
+
+  Verified this audit:
+    register(model) -> load(id) round-trips to an identical StrategyModel
+    register() without overwrite on a duplicate id -> raises
+      StrategyRegistrationError
+    disable(id) -> require_enabled(id) raises StrategyDisabledError
+    enable(id) -> require_enabled(id) succeeds
+
+--------------------------------------------------------------------------------
+5. REGISTRY DEPENDENCY GRAPH
+--------------------------------------------------------------------------------
+
+  IndicatorRegistry  <- consumed by SmartMoneyEngine (DisplacementDetector,
+                         via optional precomputed ATR IndicatorResult) and
+                         by StrategyBuilder (resolution.py)
+  SMCRegistry        <- consumed by StrategyBuilder (resolution.py)
+  StrategyRegistry (strategy_builder) <- standalone, consumed by nothing
+                         yet (no Phase 9+ engine exists to consume it)
+
+  No registry depends on the Strategy Builder's own registry. No cycle.
+
+--------------------------------------------------------------------------------
+6. OVERALL REGISTRY STATUS
+--------------------------------------------------------------------------------
+
+  Indicator Registry ........... PASS (24/24, zero duplicates)
+  SMC Registry .................. PASS (32/32, zero duplicates)
+  Registry lookups ................ PASS
+  Duplicate registrations .......... NONE FOUND (PASS)
+  Missing registrations .............. NONE FOUND (PASS)
+  Registry consistency .................. PASS
+  Registry dependency graph ................ PASS (no cycles)
+
+No source files were modified during this audit.
+================================================================================

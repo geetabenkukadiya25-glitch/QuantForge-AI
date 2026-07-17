@@ -1,0 +1,120 @@
+================================================================================
+QUANTFORGE AI — DOCUMENTATION AUDIT
+================================================================================
+
+--------------------------------------------------------------------------------
+1. REQUIRED DOCUMENTATION FILES
+--------------------------------------------------------------------------------
+
+  README.md .................................. PRESENT (330 lines)
+  docs/ARCHITECTURE.md ......................... PRESENT (493 lines)
+  docs/ROADMAP.md ................................ PRESENT (206 lines)
+  PROJECT_VISION.md ................................ PRESENT (343 lines)
+  PROJECT_RULES.md .................................... NOT FOUND
+  CHANGELOG.md ......................................... NOT FOUND
+
+  PROJECT_RULES.md and CHANGELOG.md do not exist anywhere in the
+  repository. No phase's instructions (Phase 1 through Phase 8) ever
+  requested their creation, and per this audit's read-only mandate they
+  were NOT created during this audit. Flagged as a documentation gap for
+  a future decision (see Recommendations).
+
+  Supplementary documentation also present (not required by the audit
+  scope, found during inventory):
+    PROJECT_IDEAS.md ........................ PRESENT (147 lines) --
+      parking lot for deferred improvement ideas, per PROJECT_VISION.md's
+      "Parking Lot for Future Ideas" convention.
+    docs/sdl/SPECIFICATION.md ............... PRESENT (107 lines)
+    docs/sdl/SCHEMA_REFERENCE.md ............. PRESENT (180 lines)
+    docs/sdl/EXAMPLES.md ..................... PRESENT (53 lines)
+    docs/sdl/DEVELOPER_GUIDE.md .............. PRESENT (95 lines)
+
+--------------------------------------------------------------------------------
+2. DOCUMENTATION-TO-IMPLEMENTATION CONSISTENCY
+--------------------------------------------------------------------------------
+
+  docs/ROADMAP.md phase headers:
+    Phase 1 through Phase 8 all marked complete (checkmark), matching
+    the actual implemented modules found on disk. No phase is marked
+    complete without a corresponding implemented module, and no
+    implemented module (Phase 1-8) is missing a completion marker.
+
+  README.md status banner:
+    Reads "Status: Phase 8 (Strategy Builder)" -- matches the actual
+    current state of the repository (Phase 8 is the last completed
+    phase; Phase 9 has not been started).
+
+  PROJECT_VISION.md Approved Roadmap table:
+    Lists Phases 1-17 with Phase 8 = "Strategy Builder" -- matches
+    docs/ROADMAP.md and README.md exactly. No numbering drift between
+    the three documents.
+
+  docs/ARCHITECTURE.md section headers:
+    One section per implemented engine (Platform Foundations,
+    Historical Data Engine, Chart Engine, Strategy Definition Language,
+    Market Context Engine, Indicator Engine, Smart Money Engine, Strategy
+    Builder) -- exactly matches the 8 completed phases. No section
+    exists for an unimplemented phase (9-17), consistent with "document
+    only what's built."
+
+  Streamlit page count:
+    7 pages exist under app/ui/pages/ (Historical Data, Chart Engine,
+    Strategy Library, Context Viewer, Indicator Explorer, Smart Money
+    Explorer, Strategy Builder Explorer) -- one per phase with a UI
+    deliverable (Phases 2-8; Phase 1 has no dedicated page, correctly,
+    since it has no end-user feature). All 7 are referenced by name in
+    both README.md and docs/ARCHITECTURE.md.
+
+--------------------------------------------------------------------------------
+3. MINOR FINDING: STALE PHASE REFERENCES IN PLACEHOLDER ERROR STRINGS
+--------------------------------------------------------------------------------
+
+  The following Phase 1 placeholder modules raise NotImplementedYetError
+  with a `phase=` string that references the ORIGINAL (pre-renumbering)
+  roadmap, before Phase 4 (SDL) was inserted and phases 5-9 were
+  renumbered/reorganized across this project's history:
+
+    app/ai/indicator_engine.py           -> "Phase 2 (AI Strategy Builder)"
+    app/ai/youtube/strategy_extractor.py -> "Phase 2 (YouTube Strategy Import)"
+    app/ai/youtube/transcript_reader.py  -> "Phase 2 (YouTube Strategy Import)"
+    app/analytics/analytics_engine.py    -> "Phase 8 (Risk Analysis)"
+    app/analytics/report_generator.py    -> "Phase 8 (Risk Analysis)"
+    app/backtests/backtest_engine.py     -> "Phase 4 (Auto Backtest)"
+    app/backtests/monte_carlo.py         -> "Phase 7 (Monte Carlo)"
+    app/backtests/walk_forward.py        -> "Phase 6 (Walk Forward)"
+    app/data/data_downloader.py          -> "Phase 3 (Historical Data)"
+    app/data/data_loader.py              -> "Phase 3 (Historical Data)"
+    app/mt5/ea_generator/ea_generator.py -> "Phase 9 (MT5 EA Generator)"
+    app/mt5/mt5_connector.py             -> "Phase 9 (MT5 EA Generator)"
+    app/optimization/optimizer.py        -> "Phase 5 (Optimization)"
+    app/strategies/strategy_builder.py   -> "Phase 2 (AI Strategy Builder)"
+
+  Current PROJECT_VISION.md roadmap numbering differs from several of
+  these strings (e.g. Backtesting Engine is now Phase 9, not "Phase 4";
+  EA Generator is now Phase 16, not "Phase 9"). This is COSMETIC ONLY --
+  these strings appear solely inside exception messages raised when an
+  unimplemented placeholder method is called; they do not affect
+  behavior, imports, tests, or any other module. Per this audit's
+  read-only mandate, they were NOT modified. Flagged for a future
+  documentation cleanup pass (see Recommendations).
+
+--------------------------------------------------------------------------------
+4. OVERALL DOCUMENTATION STATUS
+--------------------------------------------------------------------------------
+
+  README ......................... PASS
+  ARCHITECTURE ...................... PASS
+  ROADMAP .............................. PASS
+  CHANGELOG ................................ NOT FOUND (non-blocking gap)
+  PROJECT_VISION ............................... PASS
+  PROJECT_RULES .................................... NOT FOUND (non-blocking
+                                                        gap -- PROJECT_VISION.md
+                                                        currently serves this
+                                                        role)
+  Documentation matches implementation ................ PASS (one cosmetic
+                                                            finding noted
+                                                            above, non-
+                                                            blocking)
+
+No source files were modified during this audit.
+================================================================================

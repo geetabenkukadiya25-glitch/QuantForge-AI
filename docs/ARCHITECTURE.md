@@ -28,14 +28,17 @@ independently.
   implemented). See below.
 - **`app/smart_money_engine/`** — Smart Money Engine (Phase 7, fully
   implemented). See below.
+- **`app/strategy_builder/`** — Strategy Builder (Phase 8, fully
+  implemented). See below.
 - **`app/data/`, `app/strategies/`, `app/backtests/`, `app/optimization/`,
   `app/analytics/`, `app/ai/`, `app/mt5/`** — one package per remaining
   pipeline stage. Each ships as an interface-shaped placeholder that
   raises `NotImplementedYetError` — the contracts are real, the
   implementations are not, until their phase arrives. (`app/ai/
-  indicator_engine.py` is one of these — an unrelated placeholder for a
-  future AI-driven indicator *suggestion* feature, not real calculation;
-  see the Indicator Engine section below.)
+  indicator_engine.py` and `app/strategies/strategy_builder.py` are two
+  of these — unrelated placeholders for future AI-driven features, not
+  the real calculation/building that now live in `app.indicator_engine`
+  and `app.strategy_builder` respectively.)
 - **`app/api/`** — FastAPI application factory (`create_app`), currently
   exposing only `/health`.
 - **`app/ui/`** — Streamlit dashboard entrypoint, with feature pages under
@@ -400,6 +403,67 @@ spec explicitly directs using sibling-engine outputs:
 Everything else in `app/smart_money_engine/` remains independent of
 `app.data_engine`/`app.chart_engine` (its own `schema.py` defines the
 OHLCV column contract, matching but not importing theirs).
+
+## Strategy Builder (`app/strategy_builder/`)
+
+Combines SDL, Market Context, Indicator, and Smart Money Engine outputs
+into a reusable, executable `StrategyModel`. Unlike every prior engine,
+this phase's own spec explicitly sanctions consuming sibling engines
+directly — `StrategyContext` bundles an SDL `StrategyDefinition` plus
+the `IndicatorRegistry` and `SMCRegistry` needed to resolve it. It
+**does not** execute trades, place orders, backtest, optimize
+parameters, or generate AI decisions — it only builds and validates
+executable strategy definitions.
+
+- **Resolution (`resolution.py`)** — a pure function: for every SDL
+  `IndicatorSpec`, look up `spec.type` in `IndicatorRegistry` first,
+  then `SMCRegistry`. A hit becomes an `IndicatorReference`/
+  `DetectorReference` (keyed by `spec.name`, the strategy-local id used
+  for `depends_on` wiring); a miss is `missing`; a hit in *both*
+  registries is `ambiguous`. Every `filters`/`entry_rules`/`exit_rules`
+  entry becomes a `RuleReference` — its `condition` text is carried
+  through untouched, never interpreted. This is how "resolve indicator
+  references" and "resolve Smart Money detector references" share a
+  single SDL field (`indicators`) without requiring any change to the
+  already-completed SDL schema.
+- **`StrategyValidator`** — beyond structural resolution, checks
+  duplicate component names *across* sections (an indicator and a rule
+  sharing a name — SDL's own validator only checks duplicates *within*
+  one section), circular dependencies, `depends_on` references to
+  unknown names, and SDL version compatibility (via `app.sdl.VersionManager`
+  directly, since SDL is a sanctioned input this phase — no
+  reimplementation needed).
+- **`StrategyCompiler`** — a pure transformation: resolved components →
+  `DependencyGraph` (nodes + edges) → topologically sorted
+  `ExecutionPipeline` (`ExecutionStep`s tagged `indicator`/`detector`/
+  `rule`) → content checksum (SHA-256 over everything except the
+  per-build `model_id`/`built_at`, so two builds of the same SDL document
+  produce the same checksum) → the immutable `StrategyModel`.
+- **`StrategyModel`** and its submodels — Pydantic `frozen=True` models
+  (the same immutable+hashable pattern `ContextSnapshot` uses). Arbitrary
+  parameter dicts (which frozen Pydantic models can't hash directly) are
+  stored as canonical JSON strings (`parameters_json`) rather than raw
+  `dict` fields.
+- **`BaseStrategyBuilder`/`StrategyBuilder`** — `StrategyBuilder.build()`
+  raises `StrategyValidationError` on failure (matching
+  `IndicatorEngine.compute()`/`SmartMoneyEngine.detect()`'s established
+  behavior); `StrategyBuilder.try_build()` never raises, returning a
+  `StrategyResult` (the model, if any, plus the full validation report)
+  for callers that want introspection without exception handling.
+  `BaseStrategyBuilder` exists as an extensibility point for future
+  builder variants.
+- **`StrategyRegistry`** — in-memory, feature-flag-backed (mirroring
+  `IndicatorRegistry`/`SMCRegistry`'s shape), keyed by the source SDL
+  strategy id — not a filesystem-backed library like `app.sdl.StrategyRegistry`.
+  `require_enabled()` raises `StrategyDisabledError`, giving this
+  registry the same disabled-refusal behavior the sibling engines'
+  factories have.
+- **`StrategySerializer`** — `StrategyModel` ⇄ dict/JSON/YAML.
+
+`app/strategies/strategy_builder.py` (Phase 1) is untouched and
+unrelated — a placeholder for building `BaseStrategy` objects from an
+arbitrary dict spec, a distinct concern from this phase's SDL-driven
+`StrategyModel`.
 
 ## Pipeline
 

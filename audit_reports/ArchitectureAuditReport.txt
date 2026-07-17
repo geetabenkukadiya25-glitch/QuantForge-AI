@@ -1,0 +1,148 @@
+================================================================================
+QUANTFORGE AI — ARCHITECTURE AUDIT REPORT
+================================================================================
+Audit type   : Read-only architecture audit (no source files modified)
+Scope        : Phase 1 through Phase 8
+Audited by   : Automated architecture audit (Claude Code)
+Repo state   : main branch, working tree unchanged by this audit
+
+--------------------------------------------------------------------------------
+1. PHASE-BY-PHASE VERIFICATION
+--------------------------------------------------------------------------------
+
+Phase 1 — Foundation                                              STATUS: PASS
+  - app/core, app/config, app/database, app/utils present and importable.
+  - Centralized Settings (pydantic-settings) and Paths in place.
+  - SQLite DatabaseManager initializes cleanly.
+  - main.py launcher (api / ui / init-db) functional.
+  - Placeholder modules (app/ai, app/data, app/strategies, app/backtests,
+    app/optimization, app/analytics, app/mt5) all present, all raise
+    NotImplementedYetError, none contain real logic. No accidental
+    implementation leakage into Phase 1 scope.
+
+Phase 2 — Historical Data Engine                                  STATUS: PASS
+  - app/data_engine/ (11 files): CSVImporter, DataValidator, DataCleaner,
+    TimeframeConverter, DataExporter, DataLoader, quality report.
+  - 28 tests passing. Independent of all other engines (by design).
+
+Phase 3 — Professional Chart Engine                                STATUS: PASS
+  - app/chart_engine/ (16 files): CandlestickChart, OHLCChart, VolumeChart,
+    MultiTimeframeChart, SessionOverlay, drawing tools, ExportManager,
+    ChartEngine facade.
+  - 59 tests passing. Confirmed independent of app.data_engine (deliberate
+    decoupling, documented).
+
+Phase 4 — Strategy Definition Language (SDL)                       STATUS: PASS
+  - app/sdl/ (10 files): StrategyDefinition (Pydantic), StrategyParser,
+    StrategyValidator, StrategySerializer, StrategyCompiler, StrategyRegistry,
+    SchemaManager, VersionManager.
+  - 98 tests passing. 4/4 bundled examples parse and validate cleanly.
+  - Schema: 22 top-level sections, unchanged since Phase 4. See
+    SDLAuditReport.txt for full detail.
+
+Phase 5 — Market Context Engine                                    STATUS: PASS
+  - app/context_engine/ (10 files): ContextSnapshot (immutable, hashable,
+    versioned), ContextBuilder, ContextValidator, ContextRegistry,
+    MarketContextEngine facade.
+  - 65 tests passing. Never generates trading signals (verified: no
+    buy/sell logic present).
+
+Phase 6 — Indicator Engine                                          STATUS: PASS
+  - app/indicator_engine/ (44 files): 24 indicators across 7 categories,
+    BaseIndicator, IndicatorRegistry (feature-flag-backed), IndicatorFactory,
+    IndicatorValidator, IndicatorSerializer, IndicatorEngine facade.
+  - 263 tests passing. Registry count verified = 24, zero duplicates.
+
+Phase 7 — Smart Money Engine                                        STATUS: PASS
+  - app/smart_money_engine/ (56 files): 32 SMC detectors across 7
+    categories, BaseSMCDetector, SMCRegistry (feature-flag-backed),
+    SMCFactory, SMCValidator, SMCSerializer, SmartMoneyEngine facade.
+  - 369 tests passing. Registry count verified = 32, zero duplicates.
+  - Confirmed detection-only: no buy/sell signal generation found anywhere
+    in the module (grep-verified).
+
+Phase 8 — Strategy Builder                                          STATUS: PASS
+  - app/strategy_builder/ (12 files): StrategyContext, resolution.py
+    (SDL -> Indicator/SMC registry resolution), StrategyValidator,
+    StrategyCompiler, BaseStrategyBuilder/StrategyBuilder, StrategyRegistry,
+    StrategySerializer, StrategyModel (immutable/hashable/serializable/
+    versioned Pydantic model), StrategyResult.
+  - 62 tests passing. Verified: builds real StrategyModel objects from the
+    moving_average_cross.yaml and rsi_reversal.yaml SDL examples; correctly
+    rejects london_breakout.yaml / smc_template.yaml (placeholder types
+    that don't resolve against real registries) with clear validation
+    errors, not crashes.
+  - Confirmed: no trade execution, no order placement, no backtesting, no
+    parameter optimization, no AI decision logic anywhere in the module
+    (grep-verified, see ExecutionArchitectureAudit.txt).
+
+--------------------------------------------------------------------------------
+2. END-TO-END ARCHITECTURE FLOW VERIFICATION
+--------------------------------------------------------------------------------
+
+Requested flow:
+  SDL -> Strategy Builder -> Indicator Registry -> Smart Money Registry
+       -> Strategy Compiler -> Strategy Model -> Execution Pipeline (arch only)
+
+Verified actual flow (live-tested against moving_average_cross.yaml):
+
+  1. app.sdl.StrategyParser.parse_file()        -> raw dict
+  2. app.sdl.StrategyValidator.validate()        -> StrategyDefinition
+  3. app.strategy_builder.StrategyContext(...)   -> bundles SDL doc +
+                                                     IndicatorRegistry +
+                                                     SMCRegistry
+  4. app.strategy_builder.resolve_components()   -> classifies every SDL
+                                                     IndicatorSpec against
+                                                     IndicatorRegistry first,
+                                                     then SMCRegistry
+  5. app.strategy_builder.StrategyValidator      -> missing/ambiguous/
+                                                     duplicate/circular/
+                                                     invalid-reference/
+                                                     version checks
+  6. app.strategy_builder.StrategyCompiler       -> DependencyGraph +
+                                                     ExecutionPipeline +
+                                                     SHA-256 checksum
+  7. app.strategy_builder.StrategyModel          -> immutable, hashable,
+                                                     serializable, versioned
+                                                     output (VERIFIED)
+  8. Execution Pipeline                          -> description-only
+                                                     (ExecutionStep list);
+                                                     NO execution code exists
+                                                     anywhere in the codebase
+
+This flow was executed live during this audit (not just unit-tested) and
+produced correct, deterministic results. See StrategyBuilderAuditReport.txt.
+
+--------------------------------------------------------------------------------
+3. MODULE BOUNDARY / DEPENDENCY DIRECTION VERIFICATION
+--------------------------------------------------------------------------------
+
+Cross-engine import edges (grep-verified, see ModuleDependencyReport.txt
+for full detail):
+
+  app.data_engine          -> (no engine dependencies)
+  app.chart_engine         -> (no engine dependencies)
+  app.sdl                  -> (no engine dependencies)
+  app.context_engine       -> (no engine dependencies)
+  app.indicator_engine     -> (no engine dependencies)
+  app.smart_money_engine   -> app.context_engine, app.indicator_engine
+  app.strategy_builder     -> app.sdl, app.indicator_engine,
+                               app.smart_money_engine
+
+Result: clean directed acyclic graph (DAG). No cycles. No engine imports
+back "down" into a module that depends on it (verified explicitly: nothing
+imports FROM app.strategy_builder; nothing outside app.strategy_builder
+imports FROM app.smart_money_engine).
+
+--------------------------------------------------------------------------------
+4. OVERALL ARCHITECTURE STATUS
+--------------------------------------------------------------------------------
+
+  Architecture ............................ PASS
+  All 8 phases present and functioning .... PASS
+  End-to-end pipeline flow ................ PASS
+  Module boundaries / DAG ................. PASS
+  No circular dependencies ................ PASS
+
+No source files were modified during this audit.
+================================================================================

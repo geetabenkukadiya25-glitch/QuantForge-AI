@@ -1,0 +1,184 @@
+================================================================================
+QUANTFORGE AI — TEST COVERAGE AUDIT
+================================================================================
+
+--------------------------------------------------------------------------------
+1. FULL SUITE RESULT
+--------------------------------------------------------------------------------
+
+  pytest -q  (entire tests/ tree) .............. 987 passed, 0 failed,
+                                                    1 pre-existing unrelated
+                                                    warning, 54.71s
+
+--------------------------------------------------------------------------------
+2. PER-MODULE BREAKDOWN
+--------------------------------------------------------------------------------
+
+  tests/data_engine/          28 passed   (Phase 2)
+  tests/chart_engine/          59 passed   (Phase 3)
+  tests/sdl/                    98 passed   (Phase 4)
+  tests/context_engine/          65 passed   (Phase 5)
+  tests/indicator_engine/          263 passed   (Phase 6)
+  tests/smart_money_engine/          369 passed   (Phase 7)
+  tests/strategy_builder/              62 passed   (Phase 8)
+  tests/*.py (root: api, config,
+  database, event_bus, feature_flags,
+  logger, placeholders)                   43 passed   (Phase 1)
+  ------------------------------------------------
+  TOTAL                                     987 passed
+
+--------------------------------------------------------------------------------
+3. TEST CATEGORY COVERAGE
+--------------------------------------------------------------------------------
+
+  Unit Tests ........................ PRESENT for every engine (all 987
+                                        tests are effectively unit/
+                                        integration tests at the module
+                                        level; no dedicated separate
+                                        "unit" vs "integration" split
+                                        exists as a folder convention --
+                                        tests are organized per-engine).
+  Integration Tests ................... PRESENT: tests/strategy_builder/
+                                          test_examples.py exercises the
+                                          full SDL -> Registries ->
+                                          Strategy Builder pipeline
+                                          against real bundled SDL files
+                                          (not synthetic fixtures).
+  SDL Tests ............................. PRESENT: 98 tests (parser,
+                                            validator, compiler,
+                                            serializer, registry, schema
+                                            manager, versioning).
+  Registry Tests .......................... PRESENT: dedicated
+                                              test_registry.py in
+                                              indicator_engine (24 cases),
+                                              smart_money_engine, and
+                                              strategy_builder test suites.
+  Strategy Builder Tests .................... PRESENT: 62 tests across
+                                                builder, compiler,
+                                                validator, registry,
+                                                serializer, resolution,
+                                                pipeline generation, error
+                                                handling, version
+                                                compatibility, and
+                                                real-example integration.
+  Compiler Tests ............................... PRESENT: both
+                                                   app.sdl.StrategyCompiler
+                                                   and
+                                                   app.strategy_builder.StrategyCompiler
+                                                   have dedicated test
+                                                   files.
+  Validator Tests ................................. PRESENT for every
+                                                       engine that has a
+                                                       validator (SDL,
+                                                       data_engine,
+                                                       context_engine,
+                                                       indicator_engine,
+                                                       smart_money_engine,
+                                                       strategy_builder).
+  UI Tests ........................................... GAP IDENTIFIED:
+                                                          no permanent
+                                                          automated UI
+                                                          test files exist
+                                                          under tests/.
+                                                          Every Streamlit
+                                                          page (8 pages)
+                                                          was manually
+                                                          verified via
+                                                          Streamlit's
+                                                          AppTest harness
+                                                          during its
+                                                          respective
+                                                          phase's
+                                                          development,
+                                                          but those
+                                                          verification
+                                                          scripts were
+                                                          ephemeral
+                                                          (scratchpad) and
+                                                          not committed as
+                                                          regression
+                                                          tests. This
+                                                          audit re-ran
+                                                          all 8 pages live
+                                                          (HTTP 200 on
+                                                          every route, no
+                                                          exceptions in
+                                                          server logs) as
+                                                          a one-time
+                                                          check -- see
+                                                          ArchitectureAuditReport.txt.
+                                                          Not a blocker
+                                                          for Phase 9 (no
+                                                          UI work is in
+                                                          Phase 9's
+                                                          scope), but
+                                                          flagged as a
+                                                          process gap.
+  API Tests ............................................ PRESENT but
+                                                            minimal: 1 test
+                                                            (tests/test_api.py::test_health_endpoint)
+                                                            covering the
+                                                            only existing
+                                                            endpoint
+                                                            (/health). No
+                                                            additional API
+                                                            surface has
+                                                            been added
+                                                            since Phase 1,
+                                                            so this is
+                                                            complete
+                                                            coverage of
+                                                            the current
+                                                            API, not a gap.
+
+--------------------------------------------------------------------------------
+4. RUNTIME VERIFICATION (beyond pytest)
+--------------------------------------------------------------------------------
+
+  main.py init-db ................................... PASS (database
+                                                          initializes
+                                                          cleanly)
+  FastAPI /health endpoint (live server) ................ PASS (200 OK)
+  All 8 Streamlit pages (live server, HTTP) ................ PASS (200 OK
+                                                                on every
+                                                                route, no
+                                                                exceptions
+                                                                in logs)
+  py_compile on all 208 app/*.py files ......................... PASS
+                                                                    (0 errors)
+  Recursive import of all 19 top-level packages ................... PASS
+                                                                        (0 errors)
+
+--------------------------------------------------------------------------------
+5. OVERALL TEST COVERAGE STATUS
+--------------------------------------------------------------------------------
+
+  Unit Tests ................ PASS
+  Integration Tests .............. PASS
+  SDL Tests ......................... PASS
+  Registry Tests ........................ PASS
+  Strategy Builder Tests .................... PASS
+  Compiler Tests ................................ PASS
+  Validator Tests ................................... PASS
+  UI Tests ............................................... GAP (non-blocking,
+                                                              see above --
+                                                              recommend
+                                                              adding
+                                                              permanent
+                                                              AppTest-based
+                                                              regression
+                                                              tests in a
+                                                              future
+                                                              maintenance
+                                                              pass)
+  API Tests ................................................... PASS
+                                                                   (complete
+                                                                   for
+                                                                   current
+                                                                   surface)
+
+  All 987 existing tests: PASS. No test was modified, skipped, or
+  disabled during this audit.
+
+No source files were modified during this audit.
+================================================================================

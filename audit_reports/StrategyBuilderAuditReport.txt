@@ -1,0 +1,146 @@
+================================================================================
+QUANTFORGE AI — STRATEGY BUILDER AUDIT REPORT
+================================================================================
+
+--------------------------------------------------------------------------------
+1. COMPONENT INVENTORY (app/strategy_builder/, 12 files)
+--------------------------------------------------------------------------------
+
+  StrategyBuilder / BaseStrategyBuilder ... builder.py       PRESENT, PASS
+  StrategyCompiler ......................... compiler.py      PRESENT, PASS
+  StrategyValidator ......................... validator.py      PRESENT, PASS
+  StrategyRegistry ........................... registry.py        PRESENT, PASS
+  StrategyContext ............................. context.py          PRESENT, PASS
+  StrategyModel (+ submodels) ................... models.py             PRESENT, PASS
+  Resolution Engine (resolve_components) .......... resolution.py          PRESENT, PASS
+  Dependency Graph (DependencyGraph/Edge) ............ models.py                PRESENT, PASS
+  Execution Pipeline Generator .......................... compiler.py (build steps) PRESENT, PASS
+  StrategyMetadata ....................................... metadata.py                PRESENT, PASS
+  StrategyResult .......................................... result.py                     PRESENT, PASS
+  StrategySerializer ........................................ serializer.py                   PRESENT, PASS
+  Exceptions ................................................. exceptions.py                     PRESENT, PASS
+
+  Every class named in the Phase 8 specification is present and
+  importable from app.strategy_builder's public __init__.py.
+
+--------------------------------------------------------------------------------
+2. RESOLUTION ENGINE VERIFICATION
+--------------------------------------------------------------------------------
+
+  resolve_components(context) classifies every SDL IndicatorSpec:
+    - type registered in IndicatorRegistry only  -> IndicatorReference
+    - type registered in SMCRegistry only        -> DetectorReference
+    - type registered in BOTH                     -> "ambiguous" (error)
+    - type registered in NEITHER                   -> "missing" (error)
+  Every filters/entry_rules/exit_rules entry becomes a RuleReference,
+  condition text carried through untouched (never interpreted/evaluated).
+
+  Verified live this audit against moving_average_cross.yaml:
+    Indicators resolved: fast_ma -> SMA, slow_ma -> SMA
+    Rules resolved: golden_cross, death_cross (entry_rules),
+                     opposite_cross (exit_rules)
+    depends_on correctly captured for dependency-graph construction.
+
+--------------------------------------------------------------------------------
+3. VALIDATION VERIFICATION
+--------------------------------------------------------------------------------
+
+  Missing indicators/detectors: verified via smc_template.yaml and
+    london_breakout.yaml -- both correctly produce itemized
+    "Unknown indicator/detector type 'X' referenced by 'Y'" errors for
+    every unresolvable placeholder type (4 and 2 errors respectively),
+    with zero crashes.
+  Duplicate components (cross-section, e.g. an indicator and a rule
+    sharing a name): verified via targeted test, correctly rejected.
+  Circular dependencies: verified via targeted test (two indicators
+    depending on each other), correctly detected and rejected with a
+    human-readable cycle description.
+  Invalid depends_on references (pointing to an unknown name): verified,
+    correctly rejected.
+  SDL version compatibility: verified via targeted test using an
+    unsupported version string, correctly rejected; reuses
+    app.sdl.VersionManager directly (sanctioned reuse, not duplicated
+    logic).
+
+--------------------------------------------------------------------------------
+4. COMPILER / DEPENDENCY GRAPH / EXECUTION PIPELINE VERIFICATION
+--------------------------------------------------------------------------------
+
+  DependencyGraph: nodes + edges correctly derived from resolved
+    components' depends_on relationships. Verified edges for
+    moving_average_cross.yaml: (fast_ma -> golden_cross),
+    (slow_ma -> golden_cross), (fast_ma -> death_cross), etc.
+  ExecutionPipeline: topologically sorted; diamond-dependency ordering
+    verified correct via targeted test (base -> {left, right} -> combine
+    all resolve in valid dependency order).
+  ExecutionPipeline.describe(): produces a correct, human-readable,
+    numbered description including "(depends on: ...)" clauses only
+    when dependencies exist.
+
+--------------------------------------------------------------------------------
+5. STRATEGY MODEL VERIFICATION (Immutable / Serializable / Versioned / Hashable)
+--------------------------------------------------------------------------------
+
+  Immutable  : attempting to reassign a field (e.g. model.checksum = "x")
+               raises a Pydantic ValidationError. VERIFIED this audit.
+  Hashable   : hash(model) returns a stable int; verified two independent
+               builds of the SAME SDL document produce the SAME checksum
+               (deterministic) while producing DIFFERENT model_id values
+               (each build has its own identity/timestamp). VERIFIED.
+  Serializable: to_json() -> StrategyModel.model_validate(json.loads(...))
+               round-trips to an object equal (==) to the original, with
+               an equal hash(). VERIFIED this audit.
+  Versioned  : StrategyMetadata carries sdl_version, strategy_version,
+               AND model_version (this module's own schema version)
+               independently. VERIFIED.
+
+--------------------------------------------------------------------------------
+6. STRATEGY REGISTRY VERIFICATION
+--------------------------------------------------------------------------------
+
+  register() / load() round-trip: VERIFIED (loaded model == registered
+    model).
+  Duplicate registration without overwrite: correctly raises
+    StrategyRegistrationError. VERIFIED.
+  enable()/disable()/require_enabled(): correctly gates access via
+    FeatureFlagManager; require_enabled() raises StrategyDisabledError
+    when disabled. VERIFIED.
+  search()/list(): correctly filter by query and category. VERIFIED.
+
+--------------------------------------------------------------------------------
+7. INPUT BOUNDARY VERIFICATION (per Phase 8 spec: "consume ONLY SDL,
+   Market Context, Indicator, Smart Money Engines -- never execution
+   logic, never broker APIs")
+--------------------------------------------------------------------------------
+
+  app.strategy_builder imports FROM: app.sdl, app.indicator_engine,
+    app.smart_money_engine (via app.smart_money_engine.registry only --
+    not the detector implementations themselves). StrategyContext also
+    references app.context_engine.models.ContextSnapshot as an optional
+    type (imported by app.smart_money_engine.context, re-used
+    transitively) -- consistent with "Market Context Engine" being a
+    sanctioned input.
+  app.strategy_builder imports FROM app.mt5, app.backtests,
+    app.optimization, or any broker/execution module: NONE FOUND.
+  No OrderSend/Buy/Sell/PositionOpen/PositionClose/order_send patterns
+  anywhere in app/strategy_builder/ (grep-verified, see
+  ExecutionArchitectureAudit.txt).
+
+--------------------------------------------------------------------------------
+8. OVERALL STRATEGY BUILDER STATUS
+--------------------------------------------------------------------------------
+
+  StrategyBuilder ............ PASS
+  StrategyCompiler .............. PASS
+  StrategyValidator ................. PASS
+  StrategyRegistry ...................... PASS
+  StrategyContext .......................... PASS
+  StrategyModel ............................... PASS (immutable, hashable,
+                                                  serializable, versioned)
+  Resolution Engine ............................... PASS
+  Dependency Graph .................................... PASS
+  Execution Pipeline Generator ........................... PASS (architecture
+                                                            description only)
+
+No source files were modified during this audit.
+================================================================================

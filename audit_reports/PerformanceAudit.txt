@@ -1,0 +1,109 @@
+================================================================================
+QUANTFORGE AI — PERFORMANCE AUDIT
+================================================================================
+Machine: local dev environment (Windows, Python 3.14). Figures are
+indicative of relative cost, not formal benchmarks; re-run for
+production sizing before Phase 9 performance-sensitive work begins.
+
+--------------------------------------------------------------------------------
+1. IMPORT PERFORMANCE
+--------------------------------------------------------------------------------
+
+  import app (root package only) ............... 0.57 ms
+  Recursive import of every submodule in every
+  package (19 top-level packages, 208 files) ...... 2,175 ms (one-time,
+                                                      process-startup cost)
+  Cold import of sdl + indicator_engine +
+  smart_money_engine + strategy_builder together .... 1,515 ms
+
+  Breakdown (via -X importtime): the overwhelming majority of import
+  time is spent in third-party scientific/validation dependencies
+  (pandas, numpy, pydantic, ta) that are pulled in transitively the
+  FIRST time any engine is imported in a fresh process. This is a
+  one-time, per-process cost -- not a per-request or per-strategy-build
+  cost. Subsequent imports within the same process are effectively free
+  (Python module cache).
+
+  Assessment: normal and expected for a data-science-stack Python
+  application. No inefficiency specific to QuantForge AI's own code was
+  found in the import graph.
+
+--------------------------------------------------------------------------------
+2. REGISTRY BOOTSTRAP PERFORMANCE
+--------------------------------------------------------------------------------
+
+  IndicatorRegistry().register_builtins()  (24 indicators) ... 0.26 ms
+  SMCRegistry().register_builtins()         (32 detectors) ..... 0.28 ms
+
+  Assessment: negligible. Registry bootstrap is not a performance
+  concern at current scale (24 + 32 components) or likely future scale
+  (tens to low hundreds of components).
+
+--------------------------------------------------------------------------------
+3. REGISTRY LOOKUP PERFORMANCE
+--------------------------------------------------------------------------------
+
+  1,000x IndicatorRegistry.load() + is_enabled() .... 3.40 ms total
+                                                        (0.0034 ms/op avg)
+
+  Assessment: dict-based lookups (O(1)); negligible cost even at high
+  call volume. No concern for Phase 9's anticipated per-bar/per-strategy
+  lookup patterns.
+
+--------------------------------------------------------------------------------
+4. STRATEGY COMPILE PERFORMANCE
+--------------------------------------------------------------------------------
+
+  100x StrategyBuilder.build() (moving_average_cross.yaml,
+  2 indicators + 3 rules) ........................... 58.2 ms total
+                                                        (0.582 ms/build avg)
+  100x resolve_components() in isolation .............. 3.0 ms total
+                                                          (0.030 ms/call avg)
+
+  Assessment: sub-millisecond per build at this strategy's complexity.
+  The dominant cost within build() is Pydantic model construction and
+  validation (StrategyModel + its nested frozen submodels), not the
+  resolution or graph-building logic. At current scale this is not a
+  bottleneck. PROJECT_IDEAS.md already documents a "StrategyModel result
+  caching" idea for once a real per-bar consumer (Backtesting Engine)
+  exists -- correctly deferred, not needed yet.
+
+--------------------------------------------------------------------------------
+5. MEMORY USAGE
+--------------------------------------------------------------------------------
+
+  Memory delta building 50 StrategyModel instances .... 601.2 KB total
+                                                          (12.02 KB/model avg)
+
+  Assessment: lean. A compiled StrategyModel for a small strategy costs
+  roughly 12 KB. No unnecessary object duplication observed -- resolved
+  IndicatorReference/DetectorReference/RuleReference objects are stored
+  once each as immutable tuples within the model, not copied redundantly.
+
+--------------------------------------------------------------------------------
+6. NO UNNECESSARY DUPLICATION CHECK
+--------------------------------------------------------------------------------
+
+  Reviewed StrategyCompiler._checksum(): serializes each component
+  exactly once (via each submodel's own .model_dump()) to build the
+  canonical JSON payload; no redundant re-serialization observed.
+  Reviewed StrategyBuilder.try_build(): resolve_components() and
+  StrategyValidator.validate() each run exactly once per build() call;
+  no duplicate resolution or validation passes observed.
+
+--------------------------------------------------------------------------------
+7. OVERALL PERFORMANCE STATUS
+--------------------------------------------------------------------------------
+
+  Import performance ....................... PASS (one-time cost, normal
+                                                for this dependency stack)
+  Registry lookup performance .................. PASS (sub-millisecond)
+  Strategy compile performance .................... PASS (sub-millisecond
+                                                      per build)
+  Dependency resolution performance ................... PASS (sub-millisecond)
+  Memory usage ............................................ PASS (~12 KB/model)
+  Object allocation .......................................... PASS
+  No unnecessary duplication .................................... PASS
+
+No source files were modified during this audit.
+================================================================================

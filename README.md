@@ -15,16 +15,17 @@ Optimization → Analytics → Walk Forward → Monte Carlo →
 Risk Analysis → MT5 EA Generator
 ```
 
-> **Status: Phase 7 (Smart Money Engine).** Phase 1 established the
-> project architecture. Phase 2 added a historical OHLCV data engine.
-> Phase 3 added a professional chart engine. Phase 4 added the Strategy
+> **Status: Phase 8 (Strategy Builder).** Phase 1 established the project
+> architecture. Phase 2 added a historical OHLCV data engine. Phase 3
+> added a professional chart engine. Phase 4 added the Strategy
 > Definition Language. Phase 5 added the Market Context Engine. Phase 6
-> added the Indicator Engine. Phase 7 adds the Smart Money Engine
-> (`app/smart_money_engine/`) — 32 Smart Money Concepts detectors
-> (structure, liquidity, blocks, imbalance, zones, momentum, levels) as
-> pure detection/description components. No strategy logic, AI,
-> backtesting, optimization, or replay are implemented yet. See
-> [docs/ROADMAP.md](docs/ROADMAP.md).
+> added the Indicator Engine. Phase 7 added the Smart Money Engine.
+> Phase 8 adds the Strategy Builder (`app/strategy_builder/`) — combines
+> SDL, Market Context, Indicator, and Smart Money Engine outputs into a
+> reusable, executable `StrategyModel`. It does not execute trades,
+> backtest, optimize, or generate AI decisions — it only builds and
+> validates strategy definitions. No AI, backtesting, optimization, or
+> replay are implemented yet. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tech stack
 
@@ -49,10 +50,11 @@ QuantForge AI/
 │   │   └── indicators/        # one module per indicator, grouped by category
 │   ├── smart_money_engine/   # 32 Smart Money Concepts detectors (detection only)
 │   │   └── detectors/          # one module per detector, grouped by category
+│   ├── strategy_builder/      # Combines SDL + Context + Indicator + SMC into StrategyModel
 │   ├── data/              # (future phase) live/multi-provider data sourcing
 │   │   ├── historical/
 │   │   └── downloads/
-│   ├── strategies/        # Strategy builder
+│   ├── strategies/        # (future phase) AI-driven BaseStrategy building
 │   │   └── generated/
 │   ├── backtests/          # Backtest, walk-forward, Monte Carlo engines
 │   ├── optimization/        # Parameter optimization engine
@@ -74,7 +76,8 @@ QuantForge AI/
 │   ├── sdl/                            # SDL unit tests
 │   ├── context_engine/                  # Market Context Engine unit tests
 │   ├── indicator_engine/                 # Indicator Engine unit tests
-│   └── smart_money_engine/                # Smart Money Engine unit tests
+│   ├── smart_money_engine/                # Smart Money Engine unit tests
+│   └── strategy_builder/                   # Strategy Builder unit tests
 ├── docs/
 │   └── sdl/                            # SDL specification, schema reference, examples, dev guide
 ├── main.py
@@ -280,6 +283,46 @@ Or via the Streamlit dashboard: `python main.py ui`, then open the
 **Smart Money Explorer** page to browse detector metadata/parameters,
 toggle detectors on/off, and preview detections overlaid on a
 candlestick chart.
+
+## Strategy Builder
+
+Combines SDL, Market Context, Indicator, and Smart Money Engine outputs
+into a reusable, executable `StrategyModel`. It does not execute trades,
+backtest, optimize parameters, or generate AI decisions.
+
+```python
+from app.indicator_engine import IndicatorRegistry
+from app.smart_money_engine import SMCRegistry
+from app.sdl import StrategyParser, StrategyValidator as SDLValidator
+from app.strategy_builder import StrategyBuilder, StrategyContext
+
+indicator_registry = IndicatorRegistry()
+indicator_registry.register_builtins()
+smc_registry = SMCRegistry()
+smc_registry.register_builtins()
+
+data = StrategyParser().parse_file("app/sdl/examples/moving_average_cross.yaml")
+sdl_definition = SDLValidator().validate(data).definition
+
+context = StrategyContext(
+    sdl_definition=sdl_definition,
+    indicator_registry=indicator_registry,
+    smc_registry=smc_registry,
+)
+
+model = StrategyBuilder().build(context)   # raises StrategyValidationError on failure
+print(model.execution_pipeline.describe())
+print(model.checksum, hash(model))          # immutable, hashable, versioned
+
+# Or, without exceptions:
+result = StrategyBuilder().try_build(context)
+if not result.is_valid:
+    print(result.validation.report())
+```
+
+Or via the Streamlit dashboard: `python main.py ui`, then open the
+**Strategy Builder Explorer** page for the validation report, dependency
+graph, execution pipeline preview, and strategy summary.
 
 ## Architecture
 

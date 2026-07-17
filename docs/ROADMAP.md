@@ -120,7 +120,7 @@ This is the Single Source of Truth for "Indicators" per
 Phase 1 placeholder for a future AI-driven indicator *suggestion*
 feature — a distinct concern from real indicator calculation.
 
-## Phase 7 — Smart Money Engine ✅ (this phase)
+## Phase 7 — Smart Money Engine ✅
 
 `app/smart_money_engine/`: 32 Smart Money Concepts (SMC) detectors —
 Structure (Swing High/Low, Market Structure, BOS, CHoCH, Internal/
@@ -150,10 +150,37 @@ Builder, Backtesting Engine) will consume — it does not yet populate
 Phase 5's `MarketStatePlaceholders` fields (that wiring is deferred to
 whichever future phase first needs it).
 
+## Phase 8 — Strategy Builder ✅ (this phase)
+
+`app/strategy_builder/`: combines SDL, Market Context, Indicator, and
+Smart Money Engine outputs into a reusable, executable `StrategyModel`.
+**Does not** execute trades, place orders, backtest, optimize
+parameters, or generate AI decisions — it only builds and validates
+executable strategy definitions.
+
+`BaseStrategyBuilder`/`StrategyBuilder` (resolves SDL indicator/rule
+references against `IndicatorRegistry`/`SMCRegistry`, validates, and
+compiles), `StrategyContext` (bundles the SDL document + both
+registries — the phase's four sanctioned input sources), `StrategyModel`
+(immutable, hashable, serializable, versioned — Pydantic frozen models
+with canonical-JSON parameter encoding for hashability), `StrategyResult`
+(the full build outcome report, distinct from the pure `StrategyModel`
+artifact), `StrategyValidator` (missing/ambiguous/duplicate components,
+circular dependencies, invalid references, SDL version compatibility —
+reusing `app.sdl.VersionManager` directly since SDL is a sanctioned
+input this phase), `StrategyCompiler` (builds the dependency graph +
+topologically sorted execution pipeline + content checksum),
+`StrategyRegistry` (register/load/search/enable/disable/list, each
+strategy a `FeatureFlagManager` flag), `StrategySerializer`. Streamlit
+"Strategy Builder Explorer" page (validation report, dependency graph,
+execution pipeline preview, strategy summary).
+
+`app/strategies/strategy_builder.py` (Phase 1) remains an untouched
+placeholder — a distinct future concern (building `BaseStrategy` objects
+from an arbitrary dict spec) from this phase's SDL-driven `StrategyModel`.
+
 ## Future phases
 
-8. **Strategy Builder** — builds executable strategies from validated SDL
-   documents.
 9. **Backtesting Engine** — `BacktestEngine` implementation on VectorBT /
    Backtesting.py, consuming `app/data_engine` output and compiled SDL
    strategies.
