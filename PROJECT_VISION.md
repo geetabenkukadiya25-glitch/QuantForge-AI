@@ -230,8 +230,8 @@ approval.
 | 8 | Strategy Builder |
 | 9 | Backtesting Engine |
 | 10 | Optimization Engine |
-| 11 | Replay Engine |
-| 12 | Walk Forward & Monte Carlo |
+| 11 | Walk Forward & Monte Carlo Validation Engine |
+| 12 | Replay Engine |
 | 13 | AI Strategy Extraction |
 | 14 | Knowledge Base |
 | 15 | AI Research Assistant |

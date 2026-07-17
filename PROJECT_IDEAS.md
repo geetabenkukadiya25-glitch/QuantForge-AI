@@ -247,3 +247,46 @@ without explicit approval in a future phase.
   pool) once real-world parameter spaces are large enough for this to
   matter -- deferred for now to keep this phase's implementation simple
   and its determinism trivially easy to verify.
+
+## From Phase 11 (Walk Forward & Monte Carlo Validation Engine)
+
+- **Validate more than one candidate at once.** `ValidationContext` names
+  exactly one candidate (`candidate_id`, defaulting to the optimization
+  run's `best_candidate_id`). A future enhancement could validate the
+  full Top-N list from `OptimizationReport.top_candidates()` in one call
+  and compare their robustness/confidence/stability side by side --
+  deferred since it's a thin composition over the existing single-candidate
+  path (call `ValidationRunner.execute()` once per candidate), not a
+  design change.
+
+- **True block-length-tuned bootstrap.** `MonteCarloMethod.BOOTSTRAP` and
+  `TRADE_SEQUENCE_SHUFFLE` use simple, fixed heuristics (plain
+  with-replacement sampling; a block size of `len(trades) // 10`) rather
+  than a statistically tuned block bootstrap (e.g. optimal block length
+  from trade-return autocorrelation). Matches the Phase 11 spec's own
+  "Framework only" label for the whole Monte Carlo capability -- revisit
+  once a real workload needs more statistical rigor than "framework"
+  implies.
+
+- **Compounding, running-balance return shuffle.** `MonteCarloMethod.RETURN_SHUFFLE`
+  currently computes each trade's fractional return against the FIXED
+  initial balance (`profit / initial_balance`), not the running balance
+  at the time of that trade -- a simplification that avoids compounding
+  order-effects entirely (deliberately, so the method stays a clean,
+  distinct alternative to the additive P&L methods). A future
+  enhancement could add a genuinely compounding variant once a real
+  workload needs return-on-running-balance semantics.
+
+- **Walk-forward window reports beyond a flat table.** `ValidationReport.walk_forward_report()`
+  returns one row per window; there's no rolling/expanding visualization
+  of how in-sample vs. out-of-sample performance drifts window-to-window
+  over time (only the aggregate `performance_drift` scalar). A future
+  enhancement could add a dedicated equity-curve-style chart per window
+  boundary for the Streamlit Walk Forward Viewer.
+
+- **Wire `ValidationResult` into a future Replay Engine.** Phase 12
+  (Replay Engine, per the roadmap swap approved for this phase) is a
+  natural consumer of a validated candidate -- e.g. defaulting replay
+  sessions to only offer candidates that passed a minimum robustness/
+  confidence threshold. Not implemented here since Phase 12 doesn't
+  exist yet.

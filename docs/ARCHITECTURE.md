@@ -628,6 +628,82 @@ model, not a fresh Strategy Builder build.
 `NotImplementedYetError` placeholder for a future, differently-scoped
 consumer, distinct from this phase's `OptimizationEngine`.
 
+## Walk Forward & Monte Carlo Validation Engine (`app/validation_engine/`)
+
+Validates an already-chosen Optimization Engine candidate. It **must
+not** optimize (never re-invokes `app.optimization_engine`'s search
+methods) and **must not** backtest independently (every statistic comes
+from a real, unmodified `BacktestRunner.execute()` call, or from
+resampling an already-produced trade list). It never connects to a
+broker, never executes live trades, and never requires MetaTrader.
+
+- **`resolve.resolve_candidate()`** — the module's core "consume
+  Optimization Engine outputs, never optimize" boundary. Reads ONE
+  already-produced `OptimizationCandidateOutcome` from the given
+  `OptimizationResult` (the caller's chosen candidate, or
+  `best_candidate_id` by default) and deterministically rebuilds the
+  exact `StrategyModel`/`BacktestConfiguration` it represents using
+  `app.optimization_engine.generator.ParameterGenerator` — the SAME pure
+  derivation Optimization Engine itself used, reused directly since it's
+  a sanctioned input's own utility (not reimplemented). A checksum match
+  against the outcome's own recorded `strategy_checksum` is verified
+  defensively (`ValidationExecutionError` if it ever mismatches). It
+  never searches, scores, or compares candidates against each other.
+- **`WalkForwardEngine`** — generates window boundaries (`FIXED` = one
+  split; `ROLLING` = constant-size in-sample window sliding forward;
+  `EXPANDING` = anchored-at-zero, growing in-sample window), then
+  evaluates the SAME already-chosen candidate over each window's
+  in-sample AND out-of-sample slices via two real `BacktestRunner.execute()`
+  calls per window — no re-optimization ever happens per window. A
+  window's out-of-sample score (via `app.optimization_engine.objectives.score()`,
+  reused directly) against `WalkForwardConfiguration.pass_threshold`
+  determines `PASSED`/`FAILED`; the gap between in-sample and
+  out-of-sample score is that window's contribution to Performance Drift.
+- **`MonteCarloEngine`** — never simulates a new trade and never re-runs
+  the Backtesting Engine. Takes the trade list from ONE real
+  `BacktestResult` (the chosen candidate's full-period backtest) and
+  statistically resamples it: `TRADE_SHUFFLE`/`TRADE_SEQUENCE_SHUFFLE`
+  reorder absolute P&L values (whole-trade and block-shuffle,
+  respectively) along an additive equity path; `RETURN_SHUFFLE` treats
+  each trade's profit as a fractional return of the initial balance,
+  shuffled and applied multiplicatively — a genuinely different
+  statistical treatment from the additive methods, not just a renamed
+  duplicate; `BOOTSTRAP` samples with replacement. Each iteration reuses
+  `app.backtesting_engine.statistics.DrawdownAnalyzer` (a sanctioned
+  input's own analyzer) on its synthetic equity path. Deterministic:
+  iteration `i` seeds from `random_seed + i`.
+- **`RobustnessAnalyzer`/`ConfidenceAnalyzer`/`StabilityAnalyzer`** —
+  pure functions over already-computed results only; none of them run a
+  backtest, a search, or touch broker/MT5 code. Robustness and
+  Confidence read a single result each (`WalkForwardResult`/
+  `MonteCarloResult`); Stability additionally reads the consumed
+  `OptimizationResult`'s parameter ranking (via
+  `app.optimization_engine.report.OptimizationReport`, reused directly)
+  to ask whether the chosen candidate sits on a broad, stable plateau or
+  a sharp, isolated peak. All formulas are simple and documented
+  (coefficient-of-variation-based normalization, clipped to `[0, 1]`),
+  consistent with the "framework" label the Phase 11 spec applies to
+  this whole capability.
+- **`ValidationCompiler`** — the same checksum discipline
+  `OptimizationCompiler`/`BacktestCompiler` established: every identity/
+  timestamp field is excluded from the checksum payload before hashing.
+- **`ValidationRunner`/`ValidationSession`** — validate → resolve →
+  walk-forward (if enabled) → Monte Carlo (if enabled) → analyze →
+  compile, mirroring `OptimizationRunner`'s raising/non-raising pair.
+  Either phase can be independently disabled via
+  `ValidationConfiguration.run_walk_forward`/`run_monte_carlo`.
+- **`ValidationReport`** — Walk Forward, Monte Carlo, Robustness,
+  Confidence, Stability, and a combined Validation Summary, mirroring
+  `OptimizationReport`'s presentation-layer role.
+- **`ValidationRegistry`/`ValidationSerializer`** — the same in-memory,
+  feature-flag-backed registry and dict/JSON/YAML serializer shape every
+  prior engine's artifact uses.
+
+The validator's own pass/fail outcome class is named `ValidationCheckResult`,
+not `ValidationResult` — that name is reserved for this module's root
+artifact (per the Phase 11 spec's explicit class list), a deliberate
+naming deviation from every prior engine's `validator.py` convention.
+
 ## Pipeline
 
 ```

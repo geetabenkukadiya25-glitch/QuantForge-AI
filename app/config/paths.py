@@ -41,6 +41,9 @@ class Paths:
     optimization_engine_dir: Path
     optimization_results_dir: Path
 
+    validation_engine_dir: Path
+    validation_results_dir: Path
+
     analytics_dir: Path
     reports_dir: Path
     charts_dir: Path
@@ -73,6 +76,8 @@ def get_paths() -> Paths:
         backtest_results_dir=app_dir / "backtesting_engine" / "results",
         optimization_engine_dir=app_dir / "optimization_engine",
         optimization_results_dir=app_dir / "optimization_engine" / "results",
+        validation_engine_dir=app_dir / "validation_engine",
+        validation_results_dir=app_dir / "validation_engine" / "results",
         analytics_dir=app_dir / "analytics",
         reports_dir=app_dir / "analytics" / "reports",
         charts_dir=app_dir / "analytics" / "charts",
@@ -89,6 +94,7 @@ def get_paths() -> Paths:
         paths.context_snapshots_dir,
         paths.backtest_results_dir,
         paths.optimization_results_dir,
+        paths.validation_results_dir,
         paths.reports_dir,
         paths.charts_dir,
         paths.database_dir,

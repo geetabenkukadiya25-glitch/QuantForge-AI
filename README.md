@@ -15,21 +15,24 @@ Optimization → Analytics → Walk Forward → Monte Carlo →
 Risk Analysis → MT5 EA Generator
 ```
 
-> **Status: Phase 10 (Optimization Engine).** Phase 1 established the
-> project architecture. Phase 2 added a historical OHLCV data engine.
-> Phase 3 added a professional chart engine. Phase 4 added the Strategy
-> Definition Language. Phase 5 added the Market Context Engine. Phase 6
-> added the Indicator Engine. Phase 7 added the Smart Money Engine.
-> Phase 8 added the Strategy Builder, combining SDL, Market Context,
-> Indicator, and Smart Money Engine outputs into a reusable, executable
-> `StrategyModel`. Phase 9 added the Backtesting Engine — deterministic,
-> candle-by-candle historical replay of a compiled `StrategyModel`. Phase
-> 10 adds the Optimization Engine (`app/optimization_engine/`) — Grid
-> Search and Random Search over `StrategyModel` parameters using the
-> existing, unmodified Backtesting Engine. It never executes live trades,
-> never connects to a broker, and never requires MetaTrader. No
-> walk-forward, Monte Carlo, or AI are implemented yet. See
-> [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status: Phase 11 (Walk Forward & Monte Carlo Validation Engine).**
+> Phase 1 established the project architecture. Phase 2 added a
+> historical OHLCV data engine. Phase 3 added a professional chart
+> engine. Phase 4 added the Strategy Definition Language. Phase 5 added
+> the Market Context Engine. Phase 6 added the Indicator Engine. Phase 7
+> added the Smart Money Engine. Phase 8 added the Strategy Builder,
+> combining SDL, Market Context, Indicator, and Smart Money Engine
+> outputs into a reusable, executable `StrategyModel`. Phase 9 added the
+> Backtesting Engine — deterministic, candle-by-candle historical replay
+> of a compiled `StrategyModel`. Phase 10 added the Optimization Engine —
+> Grid Search and Random Search over `StrategyModel` parameters using the
+> existing, unmodified Backtesting Engine. Phase 11 adds the Walk Forward
+> & Monte Carlo Validation Engine (`app/validation_engine/`) — validates
+> an already-chosen Optimization Engine candidate via walk-forward
+> windowing and Monte Carlo resampling. It does not optimize, does not
+> backtest independently, never executes live trades, never connects to
+> a broker, and never requires MetaTrader. No Replay Engine or AI are
+> implemented yet. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tech stack
 
@@ -59,6 +62,8 @@ QuantForge AI/
 │   │   └── results/
 │   ├── optimization_engine/     # Grid/Random Search over StrategyModel parameters
 │   │   └── results/
+│   ├── validation_engine/        # Walk Forward + Monte Carlo validation of a chosen candidate
+│   │   └── results/
 │   ├── data/              # (future phase) live/multi-provider data sourcing
 │   │   ├── historical/
 │   │   └── downloads/
@@ -87,7 +92,8 @@ QuantForge AI/
 │   ├── smart_money_engine/                # Smart Money Engine unit tests
 │   ├── strategy_builder/                   # Strategy Builder unit tests
 │   ├── backtesting_engine/                  # Backtesting Engine unit tests
-│   └── optimization_engine/                  # Optimization Engine unit tests
+│   ├── optimization_engine/                  # Optimization Engine unit tests
+│   └── validation_engine/                     # Walk Forward & Monte Carlo Validation Engine unit tests
 ├── docs/
 │   └── sdl/                            # SDL specification, schema reference, examples, dev guide
 ├── main.py

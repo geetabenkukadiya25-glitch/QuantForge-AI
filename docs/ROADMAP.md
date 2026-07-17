@@ -220,7 +220,7 @@ are logged in `PROJECT_IDEAS.md` as candidates for a future Strategy
 Builder enhancement. `app/backtests/backtest_engine.py` (Phase 1) remains
 an untouched, differently-scoped `NotImplementedYetError` placeholder.
 
-## Phase 10 — Optimization Engine ✅ (this phase)
+## Phase 10 — Optimization Engine ✅
 
 `app/optimization_engine/`: Grid Search and Random Search over
 `StrategyModel` parameters, using the existing, **unmodified** Backtesting
@@ -264,12 +264,60 @@ for the deferred ideas this surfaced. `app/optimization/optimizer.py`
 (Phase 1) remains an untouched, differently-scoped `NotImplementedYetError`
 placeholder.
 
+## Phase 11 — Walk Forward & Monte Carlo Validation Engine ✅ (this phase)
+
+`app/validation_engine/`: validates an already-chosen Optimization Engine
+candidate via walk-forward windowing and Monte Carlo resampling. **Must
+not** optimize (never re-invokes Optimization Engine's search methods)
+and **must not** backtest independently (every statistic comes from a
+real, unmodified `BacktestRunner.execute()` call, or from resampling an
+already-produced trade list). **Never** connects to a broker, executes
+live trades, or requires MetaTrader — no parameter optimization, genetic
+algorithm, Bayesian optimization, neural networks, or Strategy Builder
+modification.
+
+`ValidationEngine` (facade, implements `BaseEngine`), `ValidationRunner`/
+`ValidationSession` (orchestrates validate → resolve → walk-forward →
+Monte Carlo → analyze → compile, mirroring `OptimizationRunner`'s
+raising/non-raising pair), `ValidationContext` (bundles the consumed
+`OptimizationResult`, the original base `StrategyModel`/`BacktestConfiguration`
+optimization was run against, historical data, and the Indicator/Smart
+Money engines the Backtesting Engine itself needs), `resolve.resolve_candidate()`
+(deterministically rebuilds the chosen candidate's exact artifacts via
+`app.optimization_engine.generator.ParameterGenerator`, reused directly —
+never re-optimizes, checksum-verified against the Optimization Engine's
+own record), `ValidationValidator` (configuration/window/seed/optimization-
+compatibility/backtest-compatibility/version validation), `WalkForwardEngine`/
+`WalkForwardWindow`/`WalkForwardConfiguration`/`WalkForwardResult` (Fixed/
+Rolling/Expanding window generation; each window's in-sample AND
+out-of-sample slices evaluated via two real Backtesting Engine calls;
+pass/fail via `app.optimization_engine.objectives.score()`, reused
+directly), `MonteCarloEngine`/`MonteCarloConfiguration`/`MonteCarloResult`
+(Trade Shuffle, Trade Sequence Shuffle, Return Shuffle, and Bootstrap
+resampling of an already-produced trade list; deterministic per-iteration
+seeding), `RobustnessAnalyzer`/`ConfidenceAnalyzer`/`StabilityAnalyzer`
+(Robustness/Consistency/Confidence/Stability scores, Performance Drift,
+Drawdown Stability, and Parameter Stability — all pure functions over
+already-computed results), `ValidationCompiler` (content checksum over
+everything except identity/timestamp fields, verified deterministic),
+`ValidationReport` (Walk Forward, Monte Carlo, Robustness, Confidence,
+Stability, and a combined Validation Summary), `ValidationRegistry`
+(register/load/search/enable/disable/list, each result a
+`FeatureFlagManager` flag), `ValidationSerializer`. Streamlit "Validation
+Dashboard" page (walk forward viewer, Monte Carlo viewer, robustness
+viewer, confidence viewer, validation report).
+
+This phase's own request initially numbered it "Phase 11" while
+`PROJECT_VISION.md`'s roadmap had Phase 11 = Replay Engine and Phase 12 =
+Walk Forward & Monte Carlo — the same phase-name-vs-roadmap conflict
+pattern seen in Phases 4 and 5. Per explicit user approval, the roadmap
+was amended to swap them (Phase 11 = this engine, Phase 12 = Replay
+Engine) rather than building out of order.
+
 ## Future phases
 
-11. **Replay Engine** — candle-by-candle playback and manual trading
+12. **Replay Engine** — candle-by-candle playback and manual trading
     simulator (see `PROJECT_VISION.md`'s Market Replay Vision).
-12. **Walk Forward & Monte Carlo** — rolling-window validation and
-    simulation.
 13. **AI Strategy Extraction** — YouTube transcript import, AI strategy
     extraction, human review/approval, SDL document generation.
 14. **Knowledge Base** — strategy library, versioning, and research
