@@ -35,6 +35,9 @@ class Paths:
     context_engine_dir: Path
     context_snapshots_dir: Path
 
+    backtesting_engine_dir: Path
+    backtest_results_dir: Path
+
     analytics_dir: Path
     reports_dir: Path
     charts_dir: Path
@@ -63,6 +66,8 @@ def get_paths() -> Paths:
         sdl_library_dir=app_dir / "sdl" / "library",
         context_engine_dir=app_dir / "context_engine",
         context_snapshots_dir=app_dir / "context_engine" / "snapshots",
+        backtesting_engine_dir=app_dir / "backtesting_engine",
+        backtest_results_dir=app_dir / "backtesting_engine" / "results",
         analytics_dir=app_dir / "analytics",
         reports_dir=app_dir / "analytics" / "reports",
         charts_dir=app_dir / "analytics" / "charts",
@@ -77,6 +82,7 @@ def get_paths() -> Paths:
         paths.generated_strategies_dir,
         paths.sdl_library_dir,
         paths.context_snapshots_dir,
+        paths.backtest_results_dir,
         paths.reports_dir,
         paths.charts_dir,
         paths.database_dir,

@@ -144,4 +144,59 @@ without explicit approval in a future phase.
   symbol the current market context describes?"). That validation
   belongs to whichever future engine actually pairs a `StrategyModel`
   with a live `ContextSnapshot` at run time (Backtesting Engine or Replay
-  Engine), not the Strategy Builder itself.
+  Engine), not the Strategy Builder itself. Phase 9 accepts a
+  `MarketContextEngine` on `BacktestContext` but does not yet wire this
+  check in — deferred again, still no real consumer forcing the design.
+
+## From Phase 9 (Backtesting Engine)
+
+- **Thread SDL `RiskManagement` into `StrategyModel`.** `StrategyModel`
+  (Phase 8) doesn't carry SDL's per-strategy `RiskManagement`/
+  `StopLossRule`/`TakeProfitRule` block — Strategy Builder never resolved
+  it, since Phase 8 had no consumer that needed numeric risk levels. Phase
+  9 works around this with run-level `stop_loss_points`/
+  `take_profit_points` on `BacktestConfiguration` (a global assumption
+  applied to every entry, not a per-strategy one). A future enhancement
+  should extend `StrategyBuilder`'s resolution/compilation to carry SDL's
+  risk management block through onto `StrategyModel`, so the Backtesting
+  Engine (and, later, the Optimization Engine) can read per-strategy risk
+  levels instead of a run-level placeholder. Deferred here rather than
+  reopening Phase 8 mid-Phase-9.
+
+- **Directional bias on entry rules.** `RuleReference` (Phase 8) has no
+  direction field, so `TradeSimulator._entry_direction()` infers BUY vs.
+  SELL from whether an entry rule's local name contains "sell"/"short" —
+  a simplified, documented Phase 9 convention, not a formal grammar. SDL
+  already has a `Bias` concept (`direction: long | short | both |
+  neutral`) that Strategy Builder doesn't yet thread onto individual
+  rules. A future enhancement could add an explicit `direction` field to
+  `RuleReference`/`ExecutionStep` so direction is a first-class, resolved
+  property instead of a name-matching heuristic.
+
+- **Condition expression grammar (built, minimally).** The condition
+  grammar this file previously deferred "until the Backtesting Engine
+  exists" is now implemented as `app.backtesting_engine.expression.evaluate_condition`
+  — a small, safe, `ast`-whitelisted interpreter (comparisons, boolean
+  combinators, arithmetic, a few numeric functions). It is intentionally
+  minimal: no ternary expressions, no string operations, no
+  cross-timeframe references, and no access to prior-candle values other
+  than what's already been sliced into the namespace. A future
+  enhancement could grow this into a richer grammar (e.g. "crosses
+  above"/"crosses below" as real operators, matching the free-text style
+  the bundled SDL examples already use) once a second consumer besides
+  the Backtesting Engine needs it.
+
+- **Multi-bar order latency.** `BacktestConfiguration.latency_bars` and
+  `ExecutionEngine`'s docstring both note that pending-order latency is
+  currently a framework placeholder only — an order always fills on the
+  first candle whose range crosses its trigger price, never delayed by
+  the configured bar count. A future enhancement could actually delay
+  triggering by `latency_bars`, once a strategy's execution assumptions
+  need to model that realistically.
+
+- **Configurable trailing-stop distance and partial-close ratio.**
+  `BacktestConfiguration.enable_trailing_stop`/`enable_partial_close` are
+  accepted (per the Phase 9 spec's "framework only" requirement) but
+  don't yet change stop distance or position sizing. A future enhancement
+  should add the actual distance/ratio parameters and wire them into
+  `PositionManager` once a strategy needs them.

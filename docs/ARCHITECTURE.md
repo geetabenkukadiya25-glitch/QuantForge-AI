@@ -465,6 +465,85 @@ unrelated — a placeholder for building `BaseStrategy` objects from an
 arbitrary dict spec, a distinct concern from this phase's SDL-driven
 `StrategyModel`.
 
+## Backtesting Engine (`app/backtesting_engine/`)
+
+Deterministic, candle-by-candle historical replay of a compiled
+`StrategyModel` against historical OHLCV data. It **never** connects to a
+broker, places a live order, or requires MetaTrader — every fill,
+spread, slippage, commission, and swap value is a locally computed,
+configurable assumption (`BacktestConfiguration`), not a live execution
+path. Consumes only the Historical Data Engine's output, Strategy
+Builder's `StrategyModel`, the Indicator Engine, and the Smart Money
+Engine (the Market Context Engine is accepted but optional).
+
+- **No look-ahead, by construction** — `TradeSimulator` precomputes every
+  indicator/detector the strategy references once over the full
+  historical range (standard practice: non-repainting indicators are pure
+  functions of past data), then replays candle by candle, exposing to
+  each candle's rule evaluation only the value at that candle's own
+  index. `BacktestValidator` additionally rejects unsorted or
+  duplicate-timestamp historical data before any simulation runs.
+  Determinism is verified directly by `tests/backtesting_engine/test_simulator.py::test_no_look_ahead_bias`
+  (truncating the dataset must not change trades already resolved well
+  before the truncation point) and `test_simulation_is_deterministic`
+  (identical input always produces identical trades and checksum).
+- **`expression.py`** — `StrategyModel.rules[*].condition` is carried
+  through Phase 8 as opaque text (Strategy Builder never interprets it;
+  see `PROJECT_IDEAS.md`, "Condition expression grammar", explicitly
+  deferred until this engine existed). `evaluate_condition()` is a
+  minimal, safe evaluator: an `ast`-based, strictly whitelisted
+  interpreter (comparisons, boolean combinators, arithmetic, a handful of
+  numeric functions) — no attribute access, no subscripting, no imports,
+  no arbitrary calls, so a condition string can never execute arbitrary
+  code. It is intentionally not a general-purpose expression language.
+- **Directional convention** — `StrategyModel` does not yet carry a
+  formal directional-bias field, so `TradeSimulator` infers direction
+  from an entry rule's local name ("sell"/"short" → SELL, otherwise BUY)
+  — a documented, simplified Phase 9 convention, not a strategy grammar
+  (see `PROJECT_IDEAS.md`, "Directional bias on entry rules").
+- **`PositionManager`/`OrderSimulator`/`ExecutionEngine`** — the only
+  mutable state in the simulation. `PositionManager` evaluates break-even,
+  stop loss, and take profit against only the current candle's own
+  high/low (stop loss wins a same-candle tie, a deterministic,
+  conservative rule). `OrderSimulator` applies the configured
+  spread/slippage as a fixed adverse offset. `ExecutionEngine` triggers
+  queued pending orders and reports every lifecycle transition
+  (`POSITION_OPEN`, `POSITION_CLOSE`, `TRADE_COMPLETE`, `ORDER_REJECTED`,
+  `ORDER_TRIGGERED`) as `ExecutionEvent`s for the timeline report.
+  Trailing stop and partial close are framework placeholders only
+  (`BacktestConfiguration.enable_trailing_stop`/`enable_partial_close`) —
+  accepted but not yet load-bearing, per the Phase 9 spec.
+- **`DrawdownAnalyzer`/`PerformanceAnalyzer`/`StatisticsEngine`** — pure
+  post-simulation analytics. Sharpe/Sortino/Calmar are explicit
+  "framework" calculations: simplified, non-annualized, per-candle-return
+  formulas, not a broker/asset-class-tuned production model.
+- **`BacktestCompiler`** — the same checksum discipline
+  `StrategyCompiler` established: every identity/timestamp field
+  (`result_id`, `built_at`, `metadata.backtest_id`) is excluded from the
+  checksum payload before hashing, so two runs of the same context
+  produce the same checksum. (An earlier draft of this compiler
+  accidentally included `backtest_id` in the payload, which — like Phase
+  8's `checksum=""` construction-order bug — was caught by a determinism
+  test before being fixed.)
+- **`BacktestRunner`/`BacktestSession`** — orchestrates validate →
+  simulate → analyze → compile, mirroring `StrategyBuilder`'s
+  raising-`execute()` / never-raising-`try_execute()` pair.
+- **`BacktestRegistry`** — in-memory, feature-flag-backed (mirroring
+  `StrategyRegistry`'s shape), keyed by `result_id` since one strategy can
+  have many backtest runs.
+- **`BacktestSerializer`**, **`TradeJournal`** — `BacktestResult` ⇄
+  dict/JSON/YAML, and a read-only, queryable view over a run's trades for
+  the Streamlit Trade List / Trade Journal reports.
+- **`BacktestConfiguration.stop_loss_points`/`take_profit_points`** —
+  `StrategyModel` does not yet carry SDL's per-strategy `RiskManagement`
+  block, so risk levels are a run-level (configuration) assumption for
+  now, not read from the strategy itself — see `PROJECT_IDEAS.md`,
+  "Thread SDL RiskManagement into StrategyModel".
+
+`app/backtests/backtest_engine.py` (Phase 1) is untouched and unrelated —
+a `NotImplementedYetError` placeholder for a future, differently-scoped
+consumer, distinct from this phase's `BacktestingEngine`.
+
 ## Pipeline
 
 ```

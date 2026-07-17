@@ -150,7 +150,7 @@ Builder, Backtesting Engine) will consume — it does not yet populate
 Phase 5's `MarketStatePlaceholders` fields (that wiring is deferred to
 whichever future phase first needs it).
 
-## Phase 8 — Strategy Builder ✅ (this phase)
+## Phase 8 — Strategy Builder ✅
 
 `app/strategy_builder/`: combines SDL, Market Context, Indicator, and
 Smart Money Engine outputs into a reusable, executable `StrategyModel`.
@@ -179,11 +179,49 @@ execution pipeline preview, strategy summary).
 placeholder — a distinct future concern (building `BaseStrategy` objects
 from an arbitrary dict spec) from this phase's SDL-driven `StrategyModel`.
 
+## Phase 9 — Backtesting Engine ✅ (this phase)
+
+`app/backtesting_engine/`: deterministic, candle-by-candle historical
+replay of a compiled `StrategyModel` against historical OHLCV data.
+**Never** connects to a broker, places a live order, or requires
+MetaTrader — no optimization, no walk-forward, no Monte Carlo, no AI.
+
+`BacktestingEngine` (facade, implements `BaseEngine`), `BacktestRunner`/
+`BacktestSession` (orchestrates validate → simulate → analyze → compile,
+mirroring `StrategyBuilder`'s raising/non-raising pair), `BacktestContext`
+(bundles the compiled `StrategyModel`, historical data, configuration,
+and the Indicator/Smart Money/Context engines needed to compute what the
+strategy references), `BacktestValidator` (strategy/data/version
+compatibility, execution integrity, rule-condition syntax), `TradeSimulator`
+(the candle-by-candle replay loop — precomputes indicators/detectors once,
+then exposes only each candle's own index to rule evaluation, guaranteeing
+no look-ahead bias), `expression.evaluate_condition` (a minimal, safe,
+`ast`-whitelisted interpreter for `RuleReference.condition` — the first
+real consumer of that previously-opaque text), `PositionManager`/
+`OrderSimulator`/`ExecutionEngine` (position lifecycle: pending/market
+orders, stop loss/take profit/break even, trailing stop and partial close
+as framework placeholders, configurable spread/slippage/commission/swap/
+latency assumptions), `DrawdownAnalyzer`/`PerformanceAnalyzer`/
+`StatisticsEngine` (win rate, profit factor, expectancy, drawdown,
+recovery factor, and framework-level Sharpe/Sortino/Calmar), `TradeJournal`
+(queryable trade view), `BacktestCompiler` (content checksum over
+everything except identity/timestamp fields, verified deterministic),
+`BacktestRegistry` (register/load/search/enable/disable/list, each result
+a `FeatureFlagManager` flag), `BacktestSerializer`. Streamlit "Backtesting
+Dashboard" page (performance summary, trade list, trade journal, equity/
+balance curves, drawdown viewer, execution timeline).
+
+`StrategyModel` does not yet carry SDL's per-strategy `RiskManagement`
+block or a formal directional-bias field, so this phase uses two
+documented, simplified conventions instead of redesigning Phase 8:
+run-level stop-loss/take-profit distances on `BacktestConfiguration`, and
+entry-rule-name-based direction inference ("sell"/"short" → SELL). Both
+are logged in `PROJECT_IDEAS.md` as candidates for a future Strategy
+Builder enhancement. `app/backtests/backtest_engine.py` (Phase 1) remains
+an untouched, differently-scoped `NotImplementedYetError` placeholder.
+
 ## Future phases
 
-9. **Backtesting Engine** — `BacktestEngine` implementation on VectorBT /
-   Backtesting.py, consuming `app/data_engine` output and compiled SDL
-   strategies.
 10. **Optimization Engine** — `OptimizationEngine` parameter search over
     SDL-defined parameters.
 11. **Replay Engine** — candle-by-candle playback and manual trading
