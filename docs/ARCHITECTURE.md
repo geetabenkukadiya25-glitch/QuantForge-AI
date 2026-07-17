@@ -544,6 +544,90 @@ Engine (the Market Context Engine is accepted but optional).
 a `NotImplementedYetError` placeholder for a future, differently-scoped
 consumer, distinct from this phase's `BacktestingEngine`.
 
+## Optimization Engine (`app/optimization_engine/`)
+
+Searches `StrategyModel` parameters for the best-scoring variant, using
+the existing, **unmodified** Backtesting Engine to evaluate every
+candidate. It never executes live trades, never connects to a broker,
+never requires MetaTrader, and never touches `app.strategy_builder`'s own
+code — every candidate `StrategyModel` is a *derived copy* of the base
+model, not a fresh Strategy Builder build.
+
+- **No SDL, no Strategy Builder re-invocation** — the sanctioned inputs
+  for this phase are Strategy Builder's OUTPUT (`StrategyModel`), the
+  Backtesting Engine, the Historical Data Engine's output, the Indicator
+  Engine, and the Smart Money Engine — not SDL directly. `generator.ParameterGenerator.apply_to_model()`
+  produces a new `StrategyModel` per candidate by `model_copy`-ing the
+  base model's `IndicatorReference`/`DetectorReference` entries with
+  updated `parameters_json`, then recomputing the checksum using the
+  exact same content-hash shape `StrategyCompiler._checksum` uses
+  (metadata, context_requirement, indicators, detectors, rules,
+  dependency_graph, execution_pipeline) — an intentionally duplicated
+  small utility, not a modification to Strategy Builder's own code. The
+  derived model's `model_id` is deterministically derived from that
+  checksum (`uuid5`, not `uuid4`) — see the determinism note below.
+- **`ParameterDefinition`/`ParameterSpace`** — one dimension per varied
+  target, addressed by a dotted path: `component.<local_name>.<param>`
+  (an indicator/detector already on the base `StrategyModel`) or
+  `configuration.<field>` (a `BacktestConfiguration` field). Supports
+  `INTEGER`/`FLOAT` (`min_value`/`max_value`/`step`), `BOOLEAN`, `ENUM`
+  (`choices_json`), and `FIXED` (`fixed_value_json`, included but never
+  varied). Arbitrary value collections are stored as canonical JSON
+  strings, the same trade-off `IndicatorReference.parameters_json` makes.
+- **`GridSearchOptimizer`/`RandomSearchOptimizer`** — framework only, per
+  the Phase 10 spec (no genetic algorithm, Bayesian optimization,
+  particle swarm, or neural optimization). Grid Search enumerates the
+  full cartesian product of every dimension's legal values
+  (`ParameterGenerator.values_for`), in a fixed, deterministic order;
+  Random Search samples `configuration.max_candidates` independent
+  assignments from a `random.Random(configuration.random_seed)`-seeded
+  RNG (`ParameterGenerator.sample`). Both share `BaseOptimizer`'s
+  interface so a future search method only needs to implement `generate()`.
+- **`objectives.score()`** — normalizes every objective so a HIGHER score
+  is always better (`MAX_DRAWDOWN` is negated), so ranking never needs
+  objective-specific logic downstream. `Objective.CUSTOM` is a framework
+  placeholder requiring `OptimizationContext.custom_scorer` — there is no
+  built-in custom scoring logic.
+- **`OptimizationValidator`** — parameter validation (duplicate names,
+  range validity, non-empty `ENUM` choices, present `FIXED` value),
+  target resolvability (every `component.*`/`configuration.*` path must
+  resolve against the base model / `BacktestConfiguration.model_fields`),
+  configuration validation (`RANDOM` requires `max_candidates`, `CUSTOM`
+  requires a scorer), strategy/data compatibility, and `StrategyModel`
+  version compatibility.
+- **`OptimizationRunner`** — validate → generate (via the configured
+  search method) → evaluate every candidate through the real
+  `BacktestRunner` → rank → compile, mirroring `BacktestRunner`'s
+  raising-`execute()` / never-raising-`try_execute()` pair. A single
+  candidate's failure (an invalid parameter combination the Backtesting
+  Engine, Indicator Engine, or Smart Money Engine rejects) is caught and
+  recorded as a failed `OptimizationCandidateOutcome` — it does not abort
+  the run. `ParameterGenerator.apply_to_configuration()` rebuilds
+  `BacktestConfiguration` through its constructor (not `model_copy`), so
+  an out-of-range candidate value (e.g. negative `take_profit_points`)
+  is caught per-candidate instead of silently accepted.
+- **Determinism** — `OptimizationCompiler`'s checksum excludes every
+  identity/timestamp field (`result_id`, `built_at`,
+  `metadata.optimization_id`) the same way `BacktestCompiler` does. This
+  phase's own bug, caught before delivery: candidate `StrategyModel`s
+  were originally assigned a random `uuid4()` `model_id`, which leaked
+  into `BacktestMetadata.strategy_model_id` and made every downstream
+  checksum non-deterministic across otherwise-identical runs. Fixed by
+  deriving `model_id` from the candidate's own content checksum
+  (`uuid5`) instead — verified by `tests/optimization_engine/test_compiler.py`.
+- **`OptimizationReport`** — a read-only, queryable view over a completed
+  `OptimizationResult` (best candidate, top N, full history, performance
+  comparison, and a simple mean-score-per-parameter-value ranking) for
+  the Streamlit Candidate Explorer / Optimization Results / Performance
+  Comparison views, mirroring `TradeJournal`'s role for `BacktestResult`.
+- **`OptimizationRegistry`** — in-memory, feature-flag-backed (mirroring
+  `BacktestRegistry`'s shape), keyed by `result_id`.
+- **`OptimizationSerializer`** — `OptimizationResult` ⇄ dict/JSON/YAML.
+
+`app/optimization/optimizer.py` (Phase 1) is untouched and unrelated — a
+`NotImplementedYetError` placeholder for a future, differently-scoped
+consumer, distinct from this phase's `OptimizationEngine`.
+
 ## Pipeline
 
 ```

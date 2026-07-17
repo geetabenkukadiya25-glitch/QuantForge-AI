@@ -179,7 +179,7 @@ execution pipeline preview, strategy summary).
 placeholder — a distinct future concern (building `BaseStrategy` objects
 from an arbitrary dict spec) from this phase's SDL-driven `StrategyModel`.
 
-## Phase 9 — Backtesting Engine ✅ (this phase)
+## Phase 9 — Backtesting Engine ✅
 
 `app/backtesting_engine/`: deterministic, candle-by-candle historical
 replay of a compiled `StrategyModel` against historical OHLCV data.
@@ -220,10 +220,52 @@ are logged in `PROJECT_IDEAS.md` as candidates for a future Strategy
 Builder enhancement. `app/backtests/backtest_engine.py` (Phase 1) remains
 an untouched, differently-scoped `NotImplementedYetError` placeholder.
 
+## Phase 10 — Optimization Engine ✅ (this phase)
+
+`app/optimization_engine/`: Grid Search and Random Search over
+`StrategyModel` parameters, using the existing, **unmodified** Backtesting
+Engine to evaluate every candidate. **Never** executes live trades,
+connects to a broker, or requires MetaTrader — no genetic algorithm,
+Bayesian optimization, particle swarm, neural optimization, walk-forward,
+Monte Carlo, or AI.
+
+`OptimizationEngine` (facade, implements `BaseEngine`), `OptimizationRunner`/
+`OptimizationSession` (orchestrates validate → generate → evaluate → rank
+→ compile, mirroring `BacktestRunner`'s raising/non-raising pair),
+`OptimizationContext` (bundles the base `StrategyModel`, historical data,
+base `BacktestConfiguration`, `ParameterSpace`, and the Indicator/Smart
+Money engines the Backtesting Engine itself needs), `OptimizationValidator`
+(parameter/range/duplicate/target-resolvability/configuration/version
+validation), `ParameterSpace`/`ParameterDefinition` (Integer/Float/
+Boolean/Enum/Fixed, with Range+Step on the numeric kinds), `ParameterGenerator`
+(enumerates/samples legal values; derives a new `StrategyModel` per
+candidate via `model_copy` + a recomputed checksum, and a new
+`BacktestConfiguration` via its constructor so out-of-range values are
+still rejected — never re-invokes `app.strategy_builder`), `GridSearchOptimizer`/
+`RandomSearchOptimizer` (deterministic candidate generation; `BaseOptimizer`
+is the shared interface for future search methods), `OptimizationCandidate`/
+`OptimizationHistory`/`OptimizationStatistics` (per-candidate assignments,
+outcomes, and run-level aggregates), `objectives.score()` (Net Profit,
+Profit Factor, Win Rate, Expectancy, Max Drawdown, Recovery Factor,
+Sharpe Ratio, and a Custom placeholder requiring an injected scorer),
+`OptimizationCompiler` (content checksum over everything except identity/
+timestamp fields, verified deterministic), `OptimizationReport` (Best
+Candidate, Top Candidates, Optimization History, Parameter Ranking,
+Performance Comparison), `OptimizationRegistry` (register/load/search/
+enable/disable/list, each result a `FeatureFlagManager` flag),
+`OptimizationSerializer`. Streamlit "Optimization Dashboard" page
+(parameter space viewer, candidate explorer, optimization progress,
+optimization results, performance comparison).
+
+`StrategyModel` doesn't carry SDL directly, so this phase's parameter
+space addresses indicator/detector parameters and `BacktestConfiguration`
+fields by dotted path rather than SDL field names — see `PROJECT_IDEAS.md`
+for the deferred ideas this surfaced. `app/optimization/optimizer.py`
+(Phase 1) remains an untouched, differently-scoped `NotImplementedYetError`
+placeholder.
+
 ## Future phases
 
-10. **Optimization Engine** — `OptimizationEngine` parameter search over
-    SDL-defined parameters.
 11. **Replay Engine** — candle-by-candle playback and manual trading
     simulator (see `PROJECT_VISION.md`'s Market Replay Vision).
 12. **Walk Forward & Monte Carlo** — rolling-window validation and

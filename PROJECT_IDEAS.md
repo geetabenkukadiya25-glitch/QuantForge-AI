@@ -200,3 +200,50 @@ without explicit approval in a future phase.
   don't yet change stop distance or position sizing. A future enhancement
   should add the actual distance/ratio parameters and wire them into
   `PositionManager` once a strategy needs them.
+
+## From Phase 10 (Optimization Engine)
+
+- **SDL-native parameter space.** `ParameterDefinition.name` addresses
+  targets by a dotted path (`component.<local_name>.<param>` /
+  `configuration.<field>`) resolved against the base `StrategyModel` and
+  `BacktestConfiguration`, rather than referencing SDL's own
+  `IndicatorSpec`/`RiskManagement` fields directly -- Phase 10's
+  sanctioned inputs are Strategy Builder's OUTPUT, not SDL itself (see
+  the Phase 9 entry above, "Thread SDL RiskManagement into
+  StrategyModel", which this phase inherits). A future enhancement could
+  let a parameter space be declared IN the SDL document itself (e.g. an
+  `optimization:` section listing which fields are tunable and their
+  ranges), once SDL/Strategy Builder are revisited for that purpose.
+
+- **Multi-bar/walk-forward-aware candidate evaluation.** Every candidate
+  is currently backtested over the exact same, single historical range
+  passed to `OptimizationContext.data` -- there is no in-sample/
+  out-of-sample split. This is intentional: Phase 10's own spec excludes
+  Walk Forward and Monte Carlo. Phase 12 (Walk Forward & Monte Carlo)
+  is the natural home for splitting `OptimizationContext.data` and
+  re-running the same `OptimizationEngine` per fold.
+
+- **Smarter search methods.** `GridSearchOptimizer`/`RandomSearchOptimizer`
+  are the only two search methods per the Phase 10 spec ("Framework
+  only. Future algorithms will be added later." -- explicitly excluding
+  genetic algorithms, Bayesian optimization, particle swarm, and neural
+  optimization for now). `BaseOptimizer` is deliberately a thin interface
+  (`generate(parameter_space, configuration) -> tuple[OptimizationCandidate, ...]`)
+  so a future phase can add a smarter method without touching
+  `OptimizationRunner`.
+
+- **Candidate result caching.** Two different optimization runs that
+  happen to generate the same candidate (same resolved parameter values)
+  currently re-run the full Backtesting Engine simulation from scratch.
+  A future enhancement could cache `BacktestResult`s by the derived
+  `StrategyModel.checksum` + `BacktestConfiguration` content hash, once a
+  real workload shows this cost matters (mirrors the `StrategyModel`
+  result-caching idea already logged under Phase 8).
+
+- **Parallel candidate evaluation.** `OptimizationRunner._evaluate()`
+  runs every candidate sequentially. Since each candidate's backtest is
+  fully independent (same input data, different parameters), a future
+  enhancement could evaluate candidates concurrently (e.g. a process
+  pool) once real-world parameter spaces are large enough for this to
+  matter -- deferred for now to keep this phase's implementation simple
+  and its determinism trivially easy to verify.
