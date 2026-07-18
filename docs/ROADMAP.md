@@ -631,10 +631,68 @@ conversation history expander, and a raw `AssistantResult` JSON export).
 
 174 new tests in `tests/ai_assistant/`; full project suite green.
 
+## Phase 16 — EA Generator ✅
+
+The official Phase 16 of `PROJECT_VISION.md`'s Approved Roadmap. An
+OFFLINE CODE GENERATOR (`app/ea_generator/`) that produces
+production-quality-skeleton MetaTrader 5 (MQL5) Expert Advisor source
+code from an already-built, already-validated `StrategyModel`. It does
+NOT compile MT5, does NOT execute trades, does NOT connect to a broker,
+does NOT call MetaTrader, does NOT run a Python bridge, and does NOT
+call any external API — an offline generator only.
+
+- **`EAGeneratorContext`** (`context.py`) — the module's "consume,
+  never rebuild" boundary: a REQUIRED `StrategyModel`, plus OPTIONAL
+  already-completed `ValidationResult`/`OptimizationResult`/
+  `ResearchResult`/`PortfolioResult` (consumed only to enrich generated
+  comments/inputs, never re-invoked).
+- **`IndicatorCodeGenerator`** (`indicators.py`) — translates
+  `StrategyModel.indicators`/`.detectors` into declaration blocks,
+  reusing Strategy Builder's already-resolved references directly.
+- **`ParameterCodeGenerator`** (`parameters.py`) — builds the standard
+  risk/identity `input` declarations from `EAGeneratorConfiguration`,
+  plus one additional `input` per optimized parameter when an
+  `OptimizationResult`'s already-computed best candidate is attached.
+- **`RiskCodeGenerator`** (`risk.py`) — a pure mapping from
+  `EAGeneratorConfiguration` onto the generated risk-parameter block;
+  no live account, broker, or MT5 state is ever read.
+- **`TradeManagementCodeGenerator`** (`trade_management.py`) — groups
+  `StrategyModel.rules` by SDL section (filters/entry/exit) into a
+  trade-management skeleton. `RuleReference.condition` is free text no
+  upstream engine ever interprets; this generator renders it as a
+  comment plus a stub boolean function requiring human translation
+  before the EA can trade, per `PROJECT_VISION.md`'s "AI assists,
+  humans approve" principle.
+- **`templates.py`** — pure, deterministic MQL5 text renderers (header,
+  inputs, indicator declarations, risk block, trade-management
+  skeleton, `OnInit`/`OnTick`/`OnDeinit` lifecycle skeleton) assembled
+  into the final `.mq5` source by `EAGenerator` (`generator.py`).
+- **`EAGeneratorValidator`** (`validator.py`) — checks the strategy has
+  a non-empty execution pipeline, the output filename is a safe plain
+  `.mq5` basename, and version/identity consistency of every consumed
+  artifact.
+- **`EACompiler`** (`compiler.py`) — builds the immutable
+  `EAGeneratorResult` and its checksum via the shared
+  `app.core.checksums` helper; the generated `source_code` text itself
+  is part of the checksum payload, so "same input = identical EA source
+  = identical checksum" holds by construction.
+- **`EAGeneratorStatisticsEngine`** (`statistics.py`) — simple counts
+  (indicators, detectors, rules, inputs, source line/character count)
+  derived purely from already-generated artifacts.
+
+A pre-existing, unrelated placeholder (`app/mt5/ea_generator/ea_generator.py`,
+a `BaseStrategy`-based stub predating `StrategyModel`) was left
+untouched — this phase's canonical location is the new `app/ea_generator/`
+package, per the "do not redesign a completed/existing module" rule.
+
+Streamlit "EA Generator" page (strategy selection, output filename,
+risk parameters, Generate EA, source preview, download button,
+metadata, checksum, generation report).
+
+175 new tests in `tests/ea_generator/`; full project suite green.
+
 ## Future phases
 
-16. **EA Generator** — MQL5 Expert Advisor generation from compiled SDL
-    strategies, only after validated human approval.
 17. **Cloud Platform** — secure paid deployment: authentication, license
     validation, cloud-hosted AI/EA/premium services.
 

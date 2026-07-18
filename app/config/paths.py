@@ -68,6 +68,9 @@ class Paths:
     ai_assistant_dir: Path
     ai_assistant_results_dir: Path
 
+    ea_generator_dir: Path
+    ea_generator_results_dir: Path
+
     analytics_dir: Path
     reports_dir: Path
     charts_dir: Path
@@ -119,6 +122,8 @@ def get_paths() -> Paths:
         portfolio_results_dir=app_dir / "portfolio_engine" / "results",
         ai_assistant_dir=app_dir / "ai_assistant",
         ai_assistant_results_dir=app_dir / "ai_assistant" / "results",
+        ea_generator_dir=app_dir / "ea_generator",
+        ea_generator_results_dir=app_dir / "ea_generator" / "results",
         analytics_dir=app_dir / "analytics",
         reports_dir=app_dir / "analytics" / "reports",
         charts_dir=app_dir / "analytics" / "charts",
@@ -142,6 +147,7 @@ def get_paths() -> Paths:
         paths.ai_extraction_results_dir,
         paths.portfolio_results_dir,
         paths.ai_assistant_results_dir,
+        paths.ea_generator_results_dir,
         paths.reports_dir,
         paths.charts_dir,
         paths.database_dir,

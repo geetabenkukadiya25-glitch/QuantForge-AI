@@ -82,6 +82,8 @@ app/portfolio_engine/results/*
 !app/portfolio_engine/results/.gitkeep
 app/ai_assistant/results/*
 !app/ai_assistant/results/.gitkeep
+app/ea_generator/results/*
+!app/ea_generator/results/.gitkeep
 
 # --- OS ------------------------------------------------------------------------
 .DS_Store

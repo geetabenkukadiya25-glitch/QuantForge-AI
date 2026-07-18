@@ -1168,6 +1168,87 @@ Streamlit "AI Assistant" page (natural-language query box, executive
 summary metrics, per-section answer display, recommendations table, a
 conversation history expander, and a raw `AssistantResult` JSON export).
 
+## EA Generator (`app/ea_generator/`)
+
+The official Phase 16 of `PROJECT_VISION.md`'s Approved Roadmap. An
+OFFLINE CODE GENERATOR ONLY: it generates production-quality-skeleton
+MetaTrader 5 (MQL5) Expert Advisor source code from an already-built,
+already-validated `StrategyModel`. It does NOT compile MT5, does NOT
+execute trades, does NOT connect to a broker, does NOT call
+MetaTrader, does NOT run a Python bridge, and does NOT call any
+external API — it only reads already-completed engine outputs and
+emits text.
+
+- **`EAGeneratorContext`** (`context.py`) — bundles a REQUIRED
+  `StrategyModel`, plus OPTIONAL already-completed `ValidationResult`/
+  `OptimizationResult`/`ResearchResult`/`PortfolioResult` outputs
+  (`app.validation_engine`/`app.optimization_engine`/
+  `app.research_engine`/`app.portfolio_engine`, consumed only to enrich
+  generated header comments and optimized `input` declarations, never
+  re-invoked).
+- **`IndicatorCodeGenerator`** (`indicators.py`) — builds
+  `GeneratedIndicatorDeclaration`s from `StrategyModel.indicators`/
+  `.detectors`, reusing Strategy Builder's already-resolved
+  `IndicatorReference`/`DetectorReference` list directly; never
+  re-resolves the Indicator Engine or Smart Money Engine registries.
+- **`ParameterCodeGenerator`** (`parameters.py`) — builds the standard
+  `input` declarations (magic number, lot size, stop loss, take profit,
+  max open positions) from `EAGeneratorConfiguration`, plus one
+  additional `input` per optimized parameter when an
+  `OptimizationResult`'s already-computed best candidate is attached.
+- **`RiskCodeGenerator`** (`risk.py`) — a pure, deterministic mapping
+  from `EAGeneratorConfiguration` onto `GeneratedRiskParameters`; no
+  live account, broker, or MT5 state is ever read.
+- **`TradeManagementCodeGenerator`** (`trade_management.py`) — groups
+  `StrategyModel.rules` (`RuleReference`) by SDL section (filters,
+  entry_rules, exit_rules) into `GeneratedRuleBlock`s.
+  `RuleReference.condition` is free text that no upstream engine ever
+  interprets or evaluates; this generator does not evaluate it either
+  — `templates.py` renders each rule as an MQL5 comment plus a stub
+  boolean function requiring a human developer to translate the actual
+  condition, consistent with `PROJECT_VISION.md`'s "AI assists, humans
+  approve" principle.
+- **`templates.py`** — pure, deterministic MQL5 text templates (no
+  clock, randomness, or live state ever read): header, `input`
+  declarations, indicator/detector declaration comments, risk
+  parameters, trade-management skeleton, and the standard
+  `OnInit`/`OnTick`/`OnDeinit` lifecycle skeleton, assembled by
+  `EAGenerator.generate()` (`generator.py`) into the final `.mq5`
+  source string.
+- **`EAGeneratorValidator`** (`validator.py`) — checks the strategy has
+  a non-empty execution pipeline, the output filename is a safe plain
+  `.mq5` basename (no path separators, no `..`), and version/identity
+  consistency of every consumed artifact against its own
+  `metadata.*_VERSION` constant and `strategy_id`.
+- **`EACompiler`** (`compiler.py`) — builds the immutable
+  `EAGeneratorResult` and its content checksum via the shared
+  `app.core.checksums` helper. The generated `source_code` text itself
+  is part of the checksum payload (not excluded like identity/timestamp
+  fields), so "same input = identical EA source = identical checksum"
+  holds by construction.
+- **`EAGeneratorStatisticsEngine`** (`statistics.py`) — simple,
+  deterministic counts (total indicators, detectors, rules, inputs,
+  source line/character count) derived purely from already-generated
+  artifacts, no recomputation.
+- **`EAGeneratorRegistry`**/**`EAGeneratorReport`**/**`EAGeneratorSerializer`**
+  mirror `PortfolioRegistry`/`PortfolioReport`/`PortfolioSerializer`'s
+  shape exactly (in-memory registry keyed by `result_id`, read-only
+  presentation views, dict/JSON/YAML export plus a `to_mq5()` raw
+  source passthrough).
+
+A pre-existing, unrelated placeholder
+(`app/mt5/ea_generator/ea_generator.py`, a `BaseStrategy`-based stub
+predating `StrategyModel`, raising `NotImplementedYetError`) was left
+untouched — this phase's canonical location is the new
+`app/ea_generator/` package, per the "do not redesign a completed/
+existing module" rule; the two are unrelated, differently-shaped
+modules that happen to share a domain name.
+
+Streamlit "EA Generator" page (strategy selection from an SDL example,
+output filename, risk parameter inputs, Generate EA, source code
+preview, download button, metadata, checksum, and a generation report
+with per-section tables).
+
 ## Pipeline
 
 ```

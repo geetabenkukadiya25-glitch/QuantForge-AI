@@ -15,7 +15,7 @@ Optimization → Analytics → Walk Forward → Monte Carlo →
 Risk Analysis → MT5 EA Generator
 ```
 
-> **Status: Phase 1-15 complete** (plus a Phase 14 Knowledge Base
+> **Status: Phase 1-16 complete** (plus a Phase 14 Knowledge Base
 > submodule and a Portfolio Management Engine, both added ahead of order
 > by approval).
 > Phase 1 established the project architecture. Phase 2 added a
@@ -68,7 +68,14 @@ Risk Analysis → MT5 EA Generator
 > QuantForge AI. It is NOT an LLM, NEVER connects to any external AI API
 > or service, and NEVER requires internet access — no embeddings, no
 > vector database. It is strictly read-only: it NEVER trades, optimizes,
-> validates, replays, or rebuilds a strategy. See
+> validates, replays, or rebuilds a strategy. Phase 16 — the official
+> Phase 16 of `PROJECT_VISION.md`'s Approved Roadmap — adds the EA
+> Generator (`app/ea_generator/`): an OFFLINE CODE GENERATOR that
+> produces production-quality-skeleton MetaTrader 5 (MQL5) Expert
+> Advisor source code from an already-built `StrategyModel`. It does
+> NOT compile MT5, does NOT execute trades, does NOT connect to a
+> broker, does NOT call MetaTrader, does NOT run a Python bridge, and
+> does NOT call any external API — it only generates source code. See
 > [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Future Institutional Roadmap
@@ -123,6 +130,8 @@ QuantForge AI/
 │   │   └── results/
 │   ├── ai_assistant/                   # Deterministic, offline search/explanations (Phase 15)
 │   │   └── results/
+│   ├── ea_generator/                    # Offline MQL5 EA source-code generator (Phase 16)
+│   │   └── results/
 │   ├── data/              # (future phase) live/multi-provider data sourcing
 │   │   ├── historical/
 │   │   └── downloads/
@@ -158,7 +167,8 @@ QuantForge AI/
 │   ├── knowledge_base/                           # Knowledge Base Platform unit tests
 │   ├── ai_extraction/                             # AI Strategy Extraction Engine unit tests
 │   ├── portfolio_engine/                           # Portfolio Management Engine unit tests
-│   └── ai_assistant/                                # AI Research Assistant unit tests
+│   ├── ai_assistant/                                # AI Research Assistant unit tests
+│   └── ea_generator/                                 # EA Generator Engine unit tests
 ├── docs/
 │   └── sdl/                            # SDL specification, schema reference, examples, dev guide
 ├── main.py
