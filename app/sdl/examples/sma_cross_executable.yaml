@@ -1,0 +1,60 @@
+# SMA Cross (Executable) -- unlike the other bundled examples, this one
+# uses real comparison expressions ("fast_ma > slow_ma") that the
+# Backtesting Engine can actually evaluate, not descriptive prose. Every
+# other bundled example (london_breakout, moving_average_cross,
+# rsi_reversal, smc_template) is an intentional Phase 4 SDL
+# schema-demonstration document whose "condition" text is not executable
+# -- running a backtest against any of them always fails Backtesting
+# Engine validation by design. This file exists so the Backtesting
+# Dashboard has at least one selectable strategy that produces a
+# complete, successful run out of the box.
+metadata:
+  id: sma-cross-executable
+  name: SMA Cross (Executable)
+  description: A minimal, fully executable SMA crossover strategy for demonstrating a complete backtest run.
+  author: QuantForge AI
+  strategy_version: "1.0.0"
+  category: trend-following
+
+market:
+  asset_class: forex
+
+symbols: [EURUSD, GBPUSD]
+timeframes: [M15, H1, H4, D1]
+primary_timeframe: H1
+
+bias:
+  direction: both
+
+indicators:
+  - name: fast_ma
+    type: SMA
+    params: {window: 5}
+  - name: slow_ma
+    type: SMA
+    params: {window: 20}
+
+entry_rules:
+  - name: buy_entry
+    condition: fast_ma > slow_ma
+    depends_on: [fast_ma, slow_ma]
+    notes: Long entry signal.
+  - name: sell_entry
+    condition: fast_ma < slow_ma
+    depends_on: [fast_ma, slow_ma]
+    notes: Short entry signal.
+
+risk_management:
+  max_risk_per_trade_pct: 1.0
+  max_open_positions: 1
+
+position_sizing:
+  method: fixed_risk_pct
+  value: 1.0
+
+tags: [example, executable, moving-average]
+notes: >
+  Fully executable -- indicator params use the Indicator Engine's real
+  parameter name ("window", not "period"), and rule conditions are real
+  comparison expressions the Backtesting Engine's expression evaluator
+  can parse and run.

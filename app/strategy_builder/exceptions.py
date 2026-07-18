@@ -16,6 +16,14 @@ class StrategyBuilderError(QuantForgeError):
     """Base class for all Strategy Builder errors."""
 
 
+class StrategyConfigurationError(StrategyBuilderError):
+    """Raised for an invalid strategy build configuration."""
+
+
+class StrategyExecutionError(StrategyBuilderError):
+    """Raised for an internal integrity failure while compiling a strategy."""
+
+
 class StrategyNotFoundError(StrategyBuilderError):
     """Raised when a requested strategy id isn't registered."""
 

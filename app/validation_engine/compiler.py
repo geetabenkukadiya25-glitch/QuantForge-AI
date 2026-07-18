@@ -8,11 +8,10 @@ every identity/timestamp field is excluded from the checksum payload
 before hashing, so two runs of the same context produce the same checksum.
 """
 
-import hashlib
-import json
 import uuid
 from datetime import datetime, timezone
 
+from app.core.checksums import compute_checksum
 from app.validation_engine.context import ValidationContext
 from app.validation_engine.metadata import VALIDATION_RESULT_VERSION, ValidationMetadata
 from app.validation_engine.models import ConfidenceScore, MonteCarloResult, RobustnessScore, StabilityScore, ValidationResult, WalkForwardResult
@@ -80,5 +79,4 @@ class ValidationCompiler:
             "confidence_score": confidence_score.model_dump(mode="json") if confidence_score else None,
             "stability_score": stability_score.model_dump(mode="json") if stability_score else None,
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return compute_checksum(payload)

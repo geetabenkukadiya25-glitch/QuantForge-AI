@@ -853,6 +853,158 @@ The validator's own pass/fail outcome class is named `ResearchCheckResult`,
 not `ResearchResult` — the same disambiguation precedent
 `ValidationCheckResult` established.
 
+## AI Strategy Extraction Engine (`app/ai_extraction/`)
+
+Converts already-obtained external strategy document text (YouTube
+transcript, PDF, Markdown, plain text, Pine Script, MQL4, MQL5,
+EasyLanguage, pseudocode, OCR text) into a draft SDL document, a
+confidence report, and a missing-information report. A deterministic,
+offline, pattern/keyword-matching pipeline — **not** a generative AI
+model, and it **never** calls an external API or network service (this
+engine never fetches a video, downloads a PDF, or performs OCR itself;
+the caller supplies already-extracted text). It **must not** generate
+trading ideas — every extracted item traces back to text already
+present in the input — and every output is an explicit DRAFT requiring
+human review, per `PROJECT_VISION.md`'s "AI assists, humans approve"
+principle and its YouTube strategy workflow (import → extract → present
+to user → require human review and approval → ...).
+
+- **15-stage pipeline** (`runner.py`'s `ExtractionRunner`): Document
+  Loader → Document Parser → Section Detection → Strategy Analyzer →
+  Indicator Extractor → Smart Money Extractor → Entry Rule Extractor →
+  Exit Rule Extractor → Risk Management Extractor → Session Extractor →
+  Timeframe Extractor → Parameter Extractor → Missing Information
+  Detector → SDL Generator → Validation → Extraction Report.
+- **`DocumentLoader`** — source-type-aware, deterministic text cleanup
+  only (strips Pine/MQL/EasyLanguage comments, YouTube timestamps, OCR
+  whitespace noise). Deliberately does NOT strip underscores from
+  markdown emphasis (`_..._`) since identifiers like `fast_ma` are
+  extremely common in real strategy text and stripping them corrupted
+  matching (`fast_ma` → `fastma`, which then substring-matched the
+  unrelated "WMA" indicator) — caught and fixed during development.
+- **`SectionDetector`** — purely lexical heading detection (markdown
+  headings, ALL-CAPS short lines, "Label:" lines) against a small known
+  keyword vocabulary (entry, exit, risk, indicators, sessions,
+  timeframes) — never a judgment about section content.
+- **`IndicatorExtractor`/`SmartMoneyExtractor`** — match document text
+  against REAL, currently-registered `app.indicator_engine`/
+  `app.smart_money_engine` names (word-boundary matching, not raw
+  substring, to avoid false positives), the same "single source of
+  truth" discipline every other engine in this platform follows. Mentions
+  of component-like text that match no registered name are surfaced as
+  `unknown_items`, never silently dropped.
+- **`EntryRuleExtractor`/`ExitRuleExtractor`** — candidate rule text
+  from bullet lines inside a detected "entry"/"exit" section (higher
+  confidence) or any line containing a strong keyword phrase ("buy
+  when", "enter long", ...) outside a section (lower confidence).
+  Extracted text is carried through verbatim as descriptive prose, never
+  parsed into an executable expression — exactly like every
+  documentation-style SDL example already in this codebase.
+- **`RiskManagementExtractor`/`SessionExtractor`/`TimeframeExtractor`** —
+  regex/controlled-vocabulary matching for stop loss / take profit /
+  risk-reward / position sizing / max drawdown statements, and real
+  session names (`app.context_engine.sessions`) / timeframe labels
+  (`app.data_engine.columns`), plus common plain-English aliases ("1
+  hour" → H1, "daily" → D1).
+- **`ParameterExtractor`** — best-guess numeric parameters found on the
+  same line as an already-detected indicator mention (e.g. "RSI(14)").
+- **`MissingInformationDetector`** — the explicit "ask a human" list:
+  flags empty entry/exit rules, indicators, risk management, timeframes,
+  sessions, name/description, and always flags `symbol` (this engine has
+  no symbol extractor by design; a placeholder is used and must be set
+  by a human).
+- **`SDLGenerator`** — builds a real `app.sdl.models.StrategyDefinition`
+  (the platform's single source of truth for strategies, reused
+  directly — never a new/parallel schema) from the extracted mentions.
+  Indicator AND detector mentions both land in SDL's single generic
+  `indicators:` list (mirroring how `app.strategy_builder.resolution`
+  itself resolves each entry against both registries). The result is
+  stored as YAML text (`generated_sdl_yaml`), not a live
+  `StrategyDefinition` object — like every other frozen model in this
+  codebase (see `IndicatorReference.parameters_json`), a mutable nested
+  pydantic object can't be safely embedded in a frozen, hashable result.
+- **Validation** — reuses the REAL, existing `app.sdl.StrategyValidator`
+  directly (never reimplemented) to confirm the generated draft is at
+  least SDL-schema-valid; this does not (and cannot) confirm Strategy
+  Builder or Backtesting Engine validity, since rule conditions remain
+  descriptive text pending human conversion.
+- **`ExtractionCompiler`** — the same checksum discipline every prior
+  compiler established: every identity/timestamp field is excluded from
+  the checksum payload before hashing, verified deterministic.
+- **`ExtractionReport`** — per-category tables (indicators, detectors,
+  rules, risk, sessions, timeframes, parameters, confidence, missing
+  information) and a combined executive summary, mirroring
+  `ResearchReport`'s presentation-layer role.
+- **`ExtractionRegistry`/`ExtractionSerializer`** — the same in-memory,
+  feature-flag-backed registry (also the Extraction Dashboard's History/
+  Search surface) and dict/JSON/YAML serializer shape every prior
+  engine's artifact uses.
+
+## Knowledge Base Platform (`app/knowledge_base/`)
+
+Built as the second submodule of Phase 14 (see `docs/ROADMAP.md`'s Phase
+14 section for the submodule breakdown), alongside the Research &
+Strategy Intelligence Engine. An institutional documentation and
+trading-knowledge system — **not** AI, **not** Strategy Builder, and
+**not** the Research Engine. It stores, indexes, and serves authored
+`KnowledgeEntry` content across SMC, ICT, price action, indicators,
+patterns, candlesticks, risk management, psychology, sessions, market
+structure, and more. It never executes a trade, never optimizes, never
+backtests, never validates, never replays, and never connects to a
+broker or MT5 — every entry is authored, static, reference content, and
+this engine only stores, indexes, and serves it.
+
+- **`KnowledgeEntry`/`KnowledgeContext`** (`models.py`, `context.py`) —
+  the module's content unit: `entry_id`, `title`, `category` (one of 22
+  `KnowledgeCategory` topic areas — SMC, ICT, price action, indicators,
+  patterns, candlestick, risk management, psychology, trading sessions,
+  market structure, order blocks, fair value gaps, liquidity, CHoCH,
+  BOS, premium/discount, mitigation, breaker, rejection, trend,
+  momentum, volatility), `difficulty` (`DifficultyLevel`), `content`,
+  `tags`, optional `asset_classes`/`timeframes`/`sessions` scoping (empty
+  means universal), `related_entry_ids` (in-base cross-references), and
+  optional `related_indicator_types`/`related_detector_types` — an
+  optional cross-reference to REAL, currently-registered
+  `app.indicator_engine`/`app.smart_money_engine` names, the same
+  "single source of truth" discipline every other engine in this
+  platform follows.
+- **`KnowledgeValidator`** — checks minimum entry count, duplicate entry
+  ids, duplicate titles (if configured), dangling `related_entry_ids`
+  cross-references, and self-references. Only if
+  `indicator_registry`/`smc_registry` were supplied to the context does
+  it additionally confirm `related_indicator_types`/
+  `related_detector_types` point at real, currently-registered names.
+  Its pass/fail outcome class is named `KnowledgeCheckResult`, not
+  `KnowledgeResult` — the same disambiguation precedent
+  `ValidationCheckResult`/`ResearchCheckResult`/`ExtractionCheckResult`
+  established.
+- **`KnowledgeStatisticsEngine`** — pure aggregation over an already-
+  validated tuple of entries: totals by category/difficulty, top tags,
+  average content length, and cross-reference counts. Never authors or
+  scores content.
+- **`KnowledgeSearchEngine`** — read-only filters over an
+  already-compiled tuple of entries: by category, keyword (substring
+  over title/summary/content), tag, difficulty, asset class, timeframe,
+  or session, plus a combined `search()` that AND-combines every field
+  set on a `KnowledgeSearchQuery`. Never mutates, authors, or scores.
+- **`KnowledgeCompiler`** — the same checksum discipline every prior
+  compiler established: every identity/timestamp field is excluded from
+  the checksum payload before hashing. Entries are sorted by `entry_id`
+  (not `KnowledgeContext.entries`' input order) before hashing, so the
+  checksum stays independent of the order entries were supplied in.
+- **`KnowledgeRunner`/`KnowledgeSession`** — validate → compute
+  statistics → compile, mirroring `ResearchRunner`'s raising/non-raising
+  `execute()`/`try_execute()` pair.
+- **`KnowledgeReport`** — per-category/per-difficulty breakdown tables,
+  top tags, a per-topic detail view (`TopicReport`, an entry plus its
+  resolved cross-references), and a stateless `LearningProgress` report
+  (completion percentage over a caller-supplied set of completed entry
+  ids — this module has no user/auth model of its own, so completion
+  state is never persisted here).
+- **`KnowledgeRegistry`/`KnowledgeSerializer`** — the same in-memory,
+  feature-flag-backed registry and dict/JSON/YAML serializer shape every
+  prior engine's artifact uses.
+
 ## Pipeline
 
 ```

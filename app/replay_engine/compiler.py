@@ -8,13 +8,12 @@ every identity/timestamp field is excluded from the checksum payload before
 hashing, so two runs of the same context produce the same checksum.
 """
 
-import hashlib
-import json
 import uuid
 from datetime import datetime, timezone
 
 import pandas as pd
 
+from app.core.checksums import compute_checksum, sha256_hex
 from app.data_engine.columns import DATETIME_COL, OHLC_COLS, VOLUME_COL
 from app.replay_engine.context import ReplayContext
 from app.replay_engine.metadata import REPLAY_RESULT_VERSION, ReplayMetadata
@@ -72,7 +71,7 @@ class ReplayCompiler:
         columns = [c for c in (DATETIME_COL, *OHLC_COLS, VOLUME_COL) if c in sliced.columns]
         hashed = pd.util.hash_pandas_object(sliced[columns], index=False)
         total = int(hashed.sum()) & 0xFFFFFFFFFFFFFFFF
-        return hashlib.sha256(str(total).encode("utf-8")).hexdigest()
+        return sha256_hex(str(total))
 
     @staticmethod
     def _checksum(metadata: ReplayMetadata, configuration, timeline: ReplayTimeline, statistics: ReplayStatistics, events: tuple[ReplayEvent, ...]) -> str:
@@ -89,5 +88,4 @@ class ReplayCompiler:
             "statistics": statistics.model_dump(mode="json"),
             "events": [e.model_dump(mode="json") for e in events],
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return compute_checksum(payload)

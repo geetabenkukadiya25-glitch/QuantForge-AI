@@ -14,7 +14,9 @@ from app.strategy_builder.compiler import StrategyCompiler
 from app.strategy_builder.context import StrategyContext
 from app.strategy_builder.exceptions import (
     StrategyBuilderError,
+    StrategyConfigurationError,
     StrategyDisabledError,
+    StrategyExecutionError,
     StrategyNotFoundError,
     StrategyRegistrationError,
     StrategyValidationError,
@@ -62,6 +64,8 @@ __all__ = [
     "ResolvedComponents",
     "resolve_components",
     "StrategyBuilderError",
+    "StrategyConfigurationError",
+    "StrategyExecutionError",
     "StrategyNotFoundError",
     "StrategyDisabledError",
     "StrategyValidationError",

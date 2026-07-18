@@ -354,7 +354,7 @@ never expose data past the cursor, satisfying the SYNC requirement),
 Replay Summary). Streamlit "Replay Dashboard" page (replay controls,
 frame viewer, trade viewer, timeline viewer, replay report).
 
-## Phase 14 — Knowledge Base — Submodule 1: Research & Strategy Intelligence Engine ✅ (in progress; this phase)
+## Phase 14 — Knowledge Base — Submodule 1: Research & Strategy Intelligence Engine ✅
 
 `app/research_engine/`: an institutional research system, **not an AI
 model**. Consumes ONLY already-completed outputs from Strategy Builder +
@@ -408,13 +408,62 @@ executive summary), `ResearchReport`, `ResearchRegistry`,
 selector, comparison table, rankings, statistics charts, advanced
 analytics, executive summary, insights, recommendations, export report).
 
+## Phase 13 — AI Strategy Extraction Engine ✅ (this phase)
+
+`app/ai_extraction/`: converts already-obtained external strategy
+document text (YouTube transcript, PDF, Markdown, plain text, Pine
+Script, MQL4, MQL5, EasyLanguage, pseudocode, OCR text) into a draft SDL
+document, a confidence report, and a missing-information report. A
+deterministic, offline, pattern/keyword-matching pipeline — **not** a
+generative AI model, and it **never** calls an external API or network
+service (per `PROJECT_VISION.md`'s "No External APIs" convention: this
+engine never fetches a video, downloads a PDF, or performs OCR itself).
+**Must not** generate trading ideas — every extracted item traces back
+to text already present in the input. Every output is an explicit DRAFT
+requiring human review, per `PROJECT_VISION.md`'s "AI assists, humans
+approve" principle and its YouTube strategy workflow (import → extract
+→ present to user → require human review and approval → generate Python
+code only after approval → ... — this phase covers only "extract" and
+"present," the steps after approval remain future work).
+
+`AIStrategyExtractionEngine` (facade, implements `BaseEngine`),
+`ExtractionRunner`/`ExtractionSession` (the 15-stage pipeline: Document
+Loader → Document Parser → Section Detection → Strategy Analyzer →
+Indicator Extractor → Smart Money Extractor → Entry Rule Extractor →
+Exit Rule Extractor → Risk Management Extractor → Session Extractor →
+Timeframe Extractor → Parameter Extractor → Missing Information
+Detector → SDL Generator → Validation → Extraction Report, mirroring
+`ExtractionRunner`'s raising/non-raising pair), `ExtractionContext`
+(raw text + declared `SourceType`, required; optional `IndicatorRegistry`/
+`SMCRegistry` for cross-referencing mentions against real registered
+names), `ExtractionValidator` (pre-execution text-length validation),
+`DocumentLoader`/`DocumentParser`/`SectionDetector`/`StrategyAnalyzer`
+(structural stages), `IndicatorExtractor`/`SmartMoneyExtractor`/
+`EntryRuleExtractor`/`ExitRuleExtractor`/`RiskManagementExtractor`/
+`SessionExtractor`/`TimeframeExtractor`/`ParameterExtractor` (the 8
+domain-specific extraction stages, each a pure pattern/keyword matcher),
+`MissingInformationDetector` (the explicit "ask a human" list; always
+flags `symbol`, since this engine has no symbol extractor by design),
+`SDLGenerator` (assembles a real `app.sdl.models.StrategyDefinition`,
+reused directly — never a new schema — stored as YAML text for
+hashability, like `IndicatorReference.parameters_json`), `ExtractionCompiler`
+(content checksum over everything except identity/timestamp fields,
+verified deterministic), `ExtractionResult` (immutable, serializable,
+versioned, hashable — strategy name, description, indicators, detectors,
+sessions, timeframes, entry/exit rules, risk mentions, parameters,
+unknown items, confidence report, missing-information report, generated
+SDL YAML + its schema-validation summary), `ExtractionReport`,
+`ExtractionRegistry` (also the History/Search surface), `ExtractionSerializer`.
+Streamlit "Extraction Dashboard" page (document input, per-category
+result tables, confidence/missing-information views, draft SDL export,
+history).
+
 ## Future phases
 
-13. **AI Strategy Extraction** — YouTube transcript import, AI strategy
-    extraction, human review/approval, SDL document generation.
 14. **Knowledge Base (remainder)** — strategy library storage and
-    versioning (Research & Strategy Intelligence Engine, submodule 1,
-    is complete — see above).
+    versioning (the Research & Strategy Intelligence Engine and the
+    Knowledge Base Platform, both Phase 14 submodules, are complete —
+    see their own sections above).
 15. **AI Research Assistant** — AI-assisted trade/report review (assists,
     does not decide, per `PROJECT_VISION.md`).
 16. **EA Generator** — MQL5 Expert Advisor generation from compiled SDL

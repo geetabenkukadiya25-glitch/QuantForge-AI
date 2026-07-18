@@ -7,11 +7,10 @@ checksum. Never touches a registry itself -- that's `resolution.py`'s
 job, run before validation and compilation.
 """
 
-import hashlib
-import json
 import uuid
 from datetime import datetime, timezone
 
+from app.core.checksums import compute_checksum
 from app.sdl.models import StrategyDefinition
 from app.strategy_builder.exceptions import StrategyBuilderError
 from app.strategy_builder.metadata import STRATEGY_MODEL_VERSION, StrategyMetadata
@@ -168,5 +167,4 @@ class StrategyCompiler:
             "dependency_graph": dependency_graph.model_dump(mode="json"),
             "execution_pipeline": execution_pipeline.model_dump(mode="json"),
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return compute_checksum(payload)

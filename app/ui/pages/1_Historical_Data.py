@@ -22,12 +22,18 @@ from app.data_engine import (
     DataLoader,
     generate_quality_report,
 )
-from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, save_dataset
+from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, render_debug_banner, render_debug_panel, save_dataset
 
 st.set_page_config(page_title="Historical Data - QuantForge AI", page_icon="📈", layout="wide")
 
+# Reserved here (top of page) but filled at the END of the script, after
+# any upload/save this run has processed -- see render_debug_banner's
+# docstring for why filling it here-and-now would show stale data.
+banner_slot = st.empty()
+
 st.title("Historical Data")
 st.caption("Load, validate, and inspect historical OHLCV data. The loaded dataset stays available to every other dashboard page.")
+render_debug_panel()
 
 loader = DataLoader()
 cleaner = DataCleaner()
@@ -108,6 +114,8 @@ if has_dataset() and st.button("Clear dataset"):
     clear_dataset()
     st.session_state.uploader_reset_token += 1
     st.rerun()
+
+render_debug_banner(banner_slot)
 
 if df is not None:
     _render(df, filename, stats)

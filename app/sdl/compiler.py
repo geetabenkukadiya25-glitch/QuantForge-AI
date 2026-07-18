@@ -8,12 +8,12 @@ this same compiled form instead of re-parsing/re-validating raw
 documents, keeping strategy interpretation consistent platform-wide.
 """
 
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
 from app.core.base_engine import BaseEngine
+from app.core.checksums import sha256_hex
 from app.sdl.exceptions import SDLCompileError, SDLValidationError
 from app.sdl.models import StrategyDefinition
 from app.sdl.serializer import StrategySerializer
@@ -118,4 +118,4 @@ class StrategyCompiler(BaseEngine):
 
     def _checksum(self, definition: StrategyDefinition) -> str:
         canonical = self._serializer.to_json(definition, canonical=True)
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return sha256_hex(canonical)

@@ -25,12 +25,18 @@ class Paths:
     data_dir: Path
     historical_data_dir: Path
     downloads_dir: Path
+    data_engine_dir: Path
 
     strategies_dir: Path
     generated_strategies_dir: Path
+    strategy_builder_dir: Path
 
     sdl_dir: Path
     sdl_library_dir: Path
+
+    indicator_engine_dir: Path
+    smart_money_engine_dir: Path
+    chart_engine_dir: Path
 
     context_engine_dir: Path
     context_snapshots_dir: Path
@@ -52,6 +58,9 @@ class Paths:
 
     knowledge_base_dir: Path
     knowledge_base_entries_dir: Path
+
+    ai_extraction_dir: Path
+    ai_extraction_results_dir: Path
 
     analytics_dir: Path
     reports_dir: Path
@@ -75,10 +84,15 @@ def get_paths() -> Paths:
         data_dir=app_dir / "data",
         historical_data_dir=app_dir / "data" / "historical",
         downloads_dir=app_dir / "data" / "downloads",
+        data_engine_dir=app_dir / "data_engine",
         strategies_dir=app_dir / "strategies",
         generated_strategies_dir=app_dir / "strategies" / "generated",
+        strategy_builder_dir=app_dir / "strategy_builder",
         sdl_dir=app_dir / "sdl",
         sdl_library_dir=app_dir / "sdl" / "library",
+        indicator_engine_dir=app_dir / "indicator_engine",
+        smart_money_engine_dir=app_dir / "smart_money_engine",
+        chart_engine_dir=app_dir / "chart_engine",
         context_engine_dir=app_dir / "context_engine",
         context_snapshots_dir=app_dir / "context_engine" / "snapshots",
         backtesting_engine_dir=app_dir / "backtesting_engine",
@@ -93,6 +107,8 @@ def get_paths() -> Paths:
         research_results_dir=app_dir / "research_engine" / "results",
         knowledge_base_dir=app_dir / "knowledge_base",
         knowledge_base_entries_dir=app_dir / "knowledge_base" / "entries",
+        ai_extraction_dir=app_dir / "ai_extraction",
+        ai_extraction_results_dir=app_dir / "ai_extraction" / "results",
         analytics_dir=app_dir / "analytics",
         reports_dir=app_dir / "analytics" / "reports",
         charts_dir=app_dir / "analytics" / "charts",
@@ -113,6 +129,7 @@ def get_paths() -> Paths:
         paths.replay_results_dir,
         paths.research_results_dir,
         paths.knowledge_base_entries_dir,
+        paths.ai_extraction_results_dir,
         paths.reports_dir,
         paths.charts_dir,
         paths.database_dir,

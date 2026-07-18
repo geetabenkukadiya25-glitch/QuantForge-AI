@@ -19,13 +19,13 @@
    a modification to Strategy Builder's own code.
 """
 
-import hashlib
 import json
 import random
 import uuid
 from typing import Any
 
 from app.backtesting_engine.models import BacktestConfiguration
+from app.core.checksums import compute_checksum
 from app.optimization_engine.exceptions import OptimizationConfigurationError
 from app.optimization_engine.models import ParameterDefinition, ParameterKind, ParameterTarget
 from app.strategy_builder.models import DetectorReference, IndicatorReference, StrategyModel
@@ -176,5 +176,4 @@ class ParameterGenerator:
             "dependency_graph": dependency_graph.model_dump(mode="json"),
             "execution_pipeline": execution_pipeline.model_dump(mode="json"),
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return compute_checksum(payload)

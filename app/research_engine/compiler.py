@@ -9,11 +9,10 @@ checksum payload before hashing, so two runs of the same context produce
 the same checksum.
 """
 
-import hashlib
-import json
 import uuid
 from datetime import datetime, timezone
 
+from app.core.checksums import compute_checksum
 from app.research_engine.context import ResearchContext
 from app.research_engine.metadata import RESEARCH_RESULT_VERSION, ResearchMetadata
 from app.research_engine.models import (
@@ -93,5 +92,4 @@ class ResearchCompiler:
             "recommendations": [r.model_dump(mode="json") for r in recommendations],
             "executive_summary": executive_summary.model_dump(mode="json"),
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return compute_checksum(payload)

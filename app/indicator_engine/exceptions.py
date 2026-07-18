@@ -16,6 +16,14 @@ class IndicatorEngineError(QuantForgeError):
     """Base class for all Indicator Engine errors."""
 
 
+class IndicatorConfigurationError(IndicatorEngineError):
+    """Raised for an invalid indicator configuration."""
+
+
+class IndicatorExecutionError(IndicatorEngineError):
+    """Raised for an internal integrity failure while computing an indicator."""
+
+
 class IndicatorNotFoundError(IndicatorEngineError):
     """Raised when a requested indicator name isn't registered."""
 

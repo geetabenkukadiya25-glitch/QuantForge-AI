@@ -13,9 +13,11 @@ from app.smart_money_engine.context import SMCContext
 from app.smart_money_engine.detectors import ALL_DETECTORS
 from app.smart_money_engine.engine import SmartMoneyEngine
 from app.smart_money_engine.exceptions import (
+    SMCConfigurationError,
     SMCDetectorDisabledError,
     SMCDetectorNotFoundError,
     SMCEngineError,
+    SMCExecutionError,
     SMCRegistrationError,
     SMCValidationError,
 )
@@ -42,6 +44,8 @@ __all__ = [
     "BaseSMCDetector",
     "ALL_DETECTORS",
     "SMCEngineError",
+    "SMCConfigurationError",
+    "SMCExecutionError",
     "SMCDetectorNotFoundError",
     "SMCDetectorDisabledError",
     "SMCValidationError",

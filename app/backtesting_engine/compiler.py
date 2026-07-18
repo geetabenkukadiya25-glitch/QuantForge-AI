@@ -7,8 +7,6 @@ candle loop itself -- that's `TradeSimulator`'s job, run before
 compilation.
 """
 
-import hashlib
-import json
 import uuid
 from datetime import datetime, timezone
 
@@ -16,6 +14,7 @@ from app.backtesting_engine.context import BacktestContext
 from app.backtesting_engine.metadata import BACKTEST_RESULT_VERSION, BacktestMetadata
 from app.backtesting_engine.models import BacktestResult, DrawdownReport, PerformanceStatistics
 from app.backtesting_engine.simulator import SimulationOutput
+from app.core.checksums import compute_checksum
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -101,5 +100,4 @@ class BacktestCompiler:
             "statistics": statistics.model_dump(mode="json"),
             "execution_timeline": [e.model_dump(mode="json") for e in execution_timeline],
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return compute_checksum(payload)

@@ -59,6 +59,26 @@ app/analytics/reports/*
 app/analytics/charts/*
 !app/analytics/charts/.gitkeep
 
+# --- Generated engine output (results / entries / library / snapshots) ---------
+app/sdl/library/*
+!app/sdl/library/.gitkeep
+app/context_engine/snapshots/*
+!app/context_engine/snapshots/.gitkeep
+app/backtesting_engine/results/*
+!app/backtesting_engine/results/.gitkeep
+app/optimization_engine/results/*
+!app/optimization_engine/results/.gitkeep
+app/validation_engine/results/*
+!app/validation_engine/results/.gitkeep
+app/replay_engine/results/*
+!app/replay_engine/results/.gitkeep
+app/research_engine/results/*
+!app/research_engine/results/.gitkeep
+app/knowledge_base/entries/*
+!app/knowledge_base/entries/.gitkeep
+app/ai_extraction/results/*
+!app/ai_extraction/results/.gitkeep
+
 # --- OS ------------------------------------------------------------------------
 .DS_Store
 Thumbs.db

@@ -9,6 +9,7 @@ from app.core.exceptions import (
 )
 from app.core.base_engine import BaseEngine
 from app.core.base_strategy import BaseStrategy
+from app.core.checksums import canonical_json, compute_checksum, sha256_hex
 from app.core.event_bus import Event, EventBus
 from app.core.feature_flags import (
     FeatureFlag,
@@ -33,4 +34,7 @@ __all__ = [
     "FeatureFlagStatus",
     "FeatureStage",
     "FeatureFlagError",
+    "canonical_json",
+    "compute_checksum",
+    "sha256_hex",
 ]

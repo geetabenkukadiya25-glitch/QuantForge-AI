@@ -8,11 +8,10 @@ timestamp field is excluded from the checksum payload before hashing, so
 two runs of the same context produce the same checksum.
 """
 
-import hashlib
-import json
 import uuid
 from datetime import datetime, timezone
 
+from app.core.checksums import compute_checksum
 from app.optimization_engine.context import OptimizationContext
 from app.optimization_engine.metadata import OPTIMIZATION_RESULT_VERSION, OptimizationMetadata
 from app.optimization_engine.models import OptimizationCandidate, OptimizationHistory, OptimizationResult, OptimizationStatistics
@@ -87,5 +86,4 @@ class OptimizationCompiler:
             "history": history.model_dump(mode="json"),
             "statistics": statistics.model_dump(mode="json"),
         }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return compute_checksum(payload)

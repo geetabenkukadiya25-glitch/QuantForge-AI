@@ -16,6 +16,14 @@ class SMCEngineError(QuantForgeError):
     """Base class for all Smart Money Engine errors."""
 
 
+class SMCConfigurationError(SMCEngineError):
+    """Raised for an invalid detector configuration."""
+
+
+class SMCExecutionError(SMCEngineError):
+    """Raised for an internal integrity failure while running a detector."""
+
+
 class SMCDetectorNotFoundError(SMCEngineError):
     """Raised when a requested detector name isn't registered."""
 

@@ -9,6 +9,7 @@ import json
 
 import yaml
 
+from app.core.checksums import canonical_json
 from app.sdl.models import StrategyDefinition
 
 
@@ -32,7 +33,7 @@ class StrategySerializer:
         """Serialize `definition` to a JSON string."""
         data = self.to_dict(definition)
         if canonical:
-            return json.dumps(data, sort_keys=True, separators=(",", ":"))
+            return canonical_json(data)
         return json.dumps(data, indent=2 if pretty else None, sort_keys=False)
 
     def to_yaml(self, definition: StrategyDefinition, canonical: bool = False) -> str:

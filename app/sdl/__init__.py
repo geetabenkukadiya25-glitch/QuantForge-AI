@@ -14,7 +14,9 @@ execution, no backtesting, no optimization, no AI, per the Phase 4 scope.
 from app.sdl.compiler import CompiledStrategy, StrategyCompiler
 from app.sdl.exceptions import (
     SDLCompileError,
+    SDLConfigurationError,
     SDLError,
+    SDLExecutionError,
     SDLParseError,
     SDLRegistryError,
     SDLValidationError,
@@ -89,6 +91,8 @@ __all__ = [
     "SUPPORTED_SDL_VERSIONS",
     # Exceptions
     "SDLError",
+    "SDLConfigurationError",
+    "SDLExecutionError",
     "SDLParseError",
     "SDLValidationError",
     "SDLVersionError",

@@ -16,6 +16,14 @@ class ContextEngineError(QuantForgeError):
     """Base class for all Market Context Engine errors."""
 
 
+class ContextConfigurationError(ContextEngineError):
+    """Raised for an invalid market context configuration."""
+
+
+class ContextExecutionError(ContextEngineError):
+    """Raised for an internal integrity failure while building a context snapshot."""
+
+
 class ContextBuildError(ContextEngineError):
     """Raised when a `ContextSnapshot` cannot be built from the given inputs."""
 

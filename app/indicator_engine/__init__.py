@@ -15,8 +15,10 @@ from app.indicator_engine.base import BaseIndicator
 from app.indicator_engine.context import IndicatorContext
 from app.indicator_engine.engine import IndicatorEngine
 from app.indicator_engine.exceptions import (
+    IndicatorConfigurationError,
     IndicatorDisabledError,
     IndicatorEngineError,
+    IndicatorExecutionError,
     IndicatorNotFoundError,
     IndicatorRegistrationError,
     IndicatorValidationError,
@@ -44,6 +46,8 @@ __all__ = [
     "BaseIndicator",
     "ALL_INDICATORS",
     "IndicatorEngineError",
+    "IndicatorConfigurationError",
+    "IndicatorExecutionError",
     "IndicatorNotFoundError",
     "IndicatorDisabledError",
     "IndicatorValidationError",

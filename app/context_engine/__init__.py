@@ -16,7 +16,9 @@ from app.context_engine.builder import MARKET_STATE_PLACEHOLDERS_FLAG, ContextBu
 from app.context_engine.context_engine import MarketContextEngine
 from app.context_engine.exceptions import (
     ContextBuildError,
+    ContextConfigurationError,
     ContextEngineError,
+    ContextExecutionError,
     ContextRegistryError,
     ContextValidationError,
     ContextVersionError,
@@ -58,6 +60,8 @@ __all__ = [
     "CONTEXT_VERSION",
     # Exceptions
     "ContextEngineError",
+    "ContextConfigurationError",
+    "ContextExecutionError",
     "ContextBuildError",
     "ContextValidationError",
     "ContextVersionError",

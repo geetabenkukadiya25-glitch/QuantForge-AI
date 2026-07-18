@@ -16,6 +16,14 @@ class SDLError(QuantForgeError):
     """Base class for all SDL errors."""
 
 
+class SDLConfigurationError(SDLError):
+    """Raised for an invalid SDL parsing/validation configuration."""
+
+
+class SDLExecutionError(SDLError):
+    """Raised for an internal integrity failure while compiling a strategy document."""
+
+
 class SDLParseError(SDLError):
     """Raised when raw text cannot be parsed into an SDL document."""
 
