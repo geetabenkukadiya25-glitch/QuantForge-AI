@@ -47,6 +47,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
+from app.ui.dataset_detection import detect_symbol, detect_timeframe
 from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, render_debug_banner, render_debug_panel, save_dataset
 
 DEBUG = get_settings().debug
@@ -264,10 +265,13 @@ st.sidebar.success(f"Built '{model.metadata.name}'")
 _step(4, "Compilation Success")
 
 st.sidebar.header("2. Historical Data")
+dataset_metadata = None
+dataset_filename = None
 if has_dataset():
-    metadata = load_metadata()
+    dataset_metadata = load_metadata()
     data = load_dataset()
-    st.sidebar.success(f"Using persisted dataset: '{metadata.filename}' ({len(data):,} candles).")
+    dataset_filename = dataset_metadata.filename if dataset_metadata else None
+    st.sidebar.success(f"Using persisted dataset: '{dataset_filename}' ({len(data):,} candles).")
     if st.sidebar.button("Clear dataset"):
         clear_dataset()
         st.rerun()
@@ -275,6 +279,7 @@ else:
     uploaded_file = st.sidebar.file_uploader("Upload a CSV file (standard or MT5 export format)", type=["csv"])
     data = None
     if uploaded_file is not None:
+        dataset_filename = uploaded_file.name
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
             tmp.write(uploaded_file.getvalue())
             tmp_path = Path(tmp.name)
@@ -287,6 +292,7 @@ else:
             # dataset without requiring its own upload -- the Historical
             # Data page isn't the only entry point that can load data.
             save_dataset(data, filename=uploaded_file.name, statistics=loader.statistics(data))
+            dataset_metadata = load_metadata()
         finally:
             tmp_path.unlink(missing_ok=True)
 
@@ -294,8 +300,15 @@ if DEBUG:
     render_debug_banner(banner_slot)
 
 st.sidebar.header("3. Execution Assumptions")
-symbol = st.sidebar.selectbox("Symbol", model.context_requirement.symbols)
-timeframe = st.sidebar.selectbox("Timeframe", model.context_requirement.timeframes)
+# Auto-detected from (in priority order) persisted dataset metadata, the
+# uploaded filename, and the data itself (DataFrame attributes for
+# Symbol, candle spacing for Timeframe) -- never a hardcoded default.
+# Falls back to "Unknown" (never a fabricated EURUSD/M15) when nothing
+# can be detected. Free-text inputs preserve manual override.
+detected_symbol = detect_symbol(dataset_metadata, dataset_filename, data)
+detected_timeframe = detect_timeframe(dataset_metadata, dataset_filename, data)
+symbol = st.sidebar.text_input("Symbol", value=detected_symbol)
+timeframe = st.sidebar.text_input("Timeframe", value=detected_timeframe)
 initial_balance = st.sidebar.number_input("Initial balance", min_value=1.0, value=10_000.0, step=1000.0)
 lot_size = st.sidebar.number_input("Lot size", min_value=0.01, value=1.0, step=0.1)
 spread_points = st.sidebar.number_input("Spread (points)", min_value=0.0, value=0.0, step=0.1)
