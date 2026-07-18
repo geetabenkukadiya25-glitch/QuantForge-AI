@@ -1005,6 +1005,169 @@ this engine only stores, indexes, and serves it.
   feature-flag-backed registry and dict/JSON/YAML serializer shape every
   prior engine's artifact uses.
 
+## Professional Portfolio Management Engine (`app/portfolio_engine/`)
+
+Built additively after Phase 13/14, as an approved-but-unplanned
+addition — the same non-renumbering precedent the Research & Strategy
+Intelligence Engine established (see `docs/ROADMAP.md` for the
+conflict/resolution record; `PROJECT_VISION.md`'s locked roadmap still
+lists Phase 15 as "AI Research Assistant," unchanged). An institutional
+portfolio management system — **not** AI, **not** a broker connection.
+It combines multiple already-completed strategies into a single
+portfolio and consumes ONLY already-completed outputs from Strategy
+Builder and the Backtesting Engine (both required), plus optionally the
+Optimization Engine, Validation Engine, Replay Engine, and Research
+Engine — it never rebuilds any of them. It NEVER trades, NEVER connects
+to a broker or MT5, NEVER places an order, NEVER optimizes, and NEVER
+validates. Only aggregation and analysis.
+
+- **`PortfolioStrategyEntry`/`PortfolioContext`** (`context.py`) — the
+  module's "consume, never rebuild" boundary, extending the
+  `StrategyRecord` pattern the Research Engine established one field
+  further: `strategy_model` and `backtest_result` are REQUIRED; optional
+  `optimization_result`/`validation_result`/`replay_result`/
+  `research_result` only enrich allocation/ranking/analytics for that
+  member when present.
+- **`AllocationEngine`** — five framework allocation methods: Equal
+  Weight, Risk Parity (inversely proportional to each member's max
+  drawdown %), Volatility Weight (inversely proportional to equity-curve
+  return standard deviation), Sharpe Weight (proportional to Sharpe
+  ratio, floored at 0), and Manual Weight (caller-supplied, normalized).
+  Every method normalizes to weights summing to 1, with an explicit,
+  documented fallback to Equal Weight whenever a method's inputs are
+  degenerate (no positive Sharpe ratio anywhere; no manual weight
+  supplied or all supplied weights are 0). Also groups resolved weights
+  into Capital, Risk, Symbol, Timeframe, and Session allocation
+  breakdowns; Sector allocation is future-ready and always empty today
+  since no consumed artifact carries a sector/asset-class label yet (see
+  `PROJECT_IDEAS.md`).
+- **`CorrelationEngine`** — pairwise Pearson correlation over each
+  member's already-produced `BacktestResult.equity_curve` returns (a
+  simple, deterministic framework calculation over point-to-point
+  returns truncated to the shortest shared length, not a
+  statistically-rigorous, time-aligned return series), plus a symbol
+  `ExposureReport` (each symbol's combined portfolio weight across every
+  member trading it).
+- **`RiskEngine`** — per-strategy risk contribution (`weight_i * risk_i`,
+  normalized to 100 — the actual risk budget each member consumes, as
+  opposed to `AllocationEngine`'s risk-parity IDEAL weight), a weighted
+  portfolio max drawdown %, and a 0-100 risk score (70% weighted
+  drawdown, 30% average pairwise correlation).
+- **`PortfolioStatisticsEngine`** — Total Net Profit, Average Return,
+  Portfolio Drawdown, Portfolio Sharpe/Sortino/Calmar. Every ratio is a
+  weighted average of each member's own already-computed
+  `BacktestResult.statistics` ratio (re-normalized over only the members
+  that actually carry it, so a few missing ratios don't silently zero
+  out the portfolio figure) — nothing here re-simulates a trade.
+- **`RankingEngine`** — Best Strategy/Worst Strategy and Highest
+  Risk/Lowest Risk are always computed (by net profit and max drawdown %
+  respectively); Most Stable, Highest Confidence, and Highest
+  Institutional Score are only computed when at least one member entry
+  carries the relevant optional `ValidationResult`/`ResearchResult` — a
+  category with no eligible member is simply omitted from
+  `PortfolioRanking.highlights`, never guessed at. "Highest Institutional
+  Score" reads the strategy's own `InstitutionalQualityScore` straight
+  out of its consumed `ResearchResult.rankings` — never recomputed, the
+  same "consume, never rebuild" discipline this module follows
+  everywhere else. Every candidate list is sorted by strategy id before
+  ranking, so ties resolve identically regardless of input entry order.
+- **`AnalyticsEngine`** — Diversification Score (50% correlation score +
+  30% inverse concentration + 20% symbol breadth), Correlation Score
+  (linear map of average pairwise correlation, -1→100, +1→0),
+  Concentration Score (the portfolio's Herfindahl-Hirschman Index as a
+  0-100 figure — higher means more concentrated in fewer strategies),
+  Risk Score (from `RiskEngine`), and a composite Portfolio Quality Score
+  (35% diversification + 40% risk + 25% profitability). Every formula is
+  an explicitly "framework" calculation, the same documented convention
+  Phase 9's Sharpe/Sortino/Calmar, Phase 11's Robustness/Confidence/
+  Stability, and Phase 14's StrategyScore/InstitutionalQualityScore use.
+- **`PortfolioCompiler`** — the same checksum discipline every prior
+  compiler established, now built on the shared `app.core.checksums`
+  helper (`compute_checksum`) rather than a hand-rolled
+  `json.dumps`/`hashlib.sha256` pair. Every identity/timestamp field is
+  excluded from the checksum payload before hashing, and every
+  tuple-shaped artifact this module produces (`StrategyAllocation`s,
+  correlation pairs) is built in strategy-id-sorted order, so the final
+  checksum is independent of both build timing and the order member
+  entries were supplied in.
+- **`PortfolioReport`** — the six requested report views: Executive
+  Summary, Portfolio Report (the core `PortfolioStatistics` bundle), Risk
+  Report, Allocation Report (per-strategy plus symbol/timeframe/session/
+  sector breakdowns), Ranking Report, and Analytics Report.
+- **`PortfolioRegistry`/`PortfolioSerializer`** — the same in-memory,
+  feature-flag-backed registry and dict/JSON/YAML serializer shape every
+  prior engine's artifact uses.
+
+Streamlit "Portfolio Dashboard" page (multi-strategy selection from
+bundled SDL examples, allocation method + manual weight inputs,
+executive summary metrics, and the six report-view tabs, plus a raw
+`PortfolioResult` JSON export).
+
+## AI Research Assistant (`app/ai_assistant/`)
+
+The official Phase 15 of `PROJECT_VISION.md`'s Approved Roadmap. A
+deterministic, offline research assistant — **not** an LLM. It NEVER
+connects to any external AI API or service, and NEVER requires internet
+access. No embeddings, no vector database. It consumes ONLY
+already-built registries (`KnowledgeRegistry`, `ResearchRegistry`,
+`PortfolioRegistry`, `IndicatorRegistry`, `SMCRegistry`,
+`app.sdl.StrategyRegistry`, all optional) plus this module's own static,
+documentation-sourced glossary — it never rebuilds any of them. It is
+strictly read-only: it NEVER executes a trade, NEVER optimizes, NEVER
+validates, NEVER replays, NEVER rebuilds a strategy, and NEVER connects
+to a broker or MT5.
+
+- **`AssistantContext`** (`context.py`) — a raw query plus every
+  attached registry, all optional; a query with nothing attached still
+  answers deterministically, never a fabricated answer.
+- **`IntentClassifier`** (`intent.py`) — a pure, rule-based lexical
+  matcher (evaluated in a fixed priority order) over 13 `QueryIntent`
+  values. `DETECTOR_ALIASES` maps shorthand ("BOS", "FVG") to the REAL
+  registered detector names ("Break Of Structure", "Fair Value Gap").
+- **`QueryPlanner`** (`planner.py`) — a static lookup table mapping each
+  intent to which `SearchSourceType`s to consult, separating planning
+  from search/reasoning.
+- **`KnowledgeLookup`** (`knowledge.py`) — `ENGINE_GLOSSARY`: fixed,
+  documentation-sourced explanations for "Explain optimization" /
+  "validation" / "replay" / "portfolio analytics" / "AI extraction," plus
+  keyword search over any attached `KnowledgeRegistry`'s authored
+  entries.
+- **`SearchEngine`** (`search.py`) — keyword/tag/category/registry/
+  related-strategy/related-indicator/related-detector search, every
+  method a plain substring/tag filter, never a ranked or learned model.
+- **`AssistantStatisticsEngine`** (`statistics.py`) — "highest Sharpe
+  strategy" / "lowest drawdown portfolio" answered by reading
+  already-computed statistics a `ResearchResult`/`PortfolioResult`
+  already carries, never recomputed.
+- **`ReasoningEngine`** (`reasoning.py`) — pure rule-based text assembly
+  per intent; a lookup with nothing found says so explicitly, never
+  guesses.
+- **`RecommendationEngine`** (`recommendations.py`) — related items
+  derived only from what an answer's own sections already cited.
+- **`ConversationManager`/`ConversationSession`** (`conversation.py`) —
+  a stateless-per-turn, append-only transcript; each turn is answered
+  completely independently, no hidden state biasing future reasoning.
+- **`AssistantCompiler`** — the same checksum discipline every prior
+  compiler established, built on the shared `app.core.checksums` helper.
+- **`AssistantReport`/`AssistantRegistry`/`AssistantSerializer`** — the
+  same presentation/registry/serialization shape every prior engine's
+  artifact uses.
+
+**Registry-access constraint** (documented inline at every call site):
+`KnowledgeRegistry`/`ResearchRegistry`/`PortfolioRegistry` key their
+internal storage by each result's own `result_id`, a DIFFERENT id than
+the `research_id`/`knowledge_id`/`portfolio_id` field `.list()`'s
+returned metadata carries — there is no public way to go from a
+`list()`-returned metadata object back to its full result body via
+`.load()`. Since modifying those registries is out of scope for this
+phase, `search.py`/`knowledge.py`/`statistics.py` read each registry's
+internal `_results` mapping directly, filtered to only enabled ids via
+the public `list(include_disabled=False)` first.
+
+Streamlit "AI Assistant" page (natural-language query box, executive
+summary metrics, per-section answer display, recommendations table, a
+conversation history expander, and a raw `AssistantResult` JSON export).
+
 ## Pipeline
 
 ```

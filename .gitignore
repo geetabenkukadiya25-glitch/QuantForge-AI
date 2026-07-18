@@ -78,6 +78,10 @@ app/knowledge_base/entries/*
 !app/knowledge_base/entries/.gitkeep
 app/ai_extraction/results/*
 !app/ai_extraction/results/.gitkeep
+app/portfolio_engine/results/*
+!app/portfolio_engine/results/.gitkeep
+app/ai_assistant/results/*
+!app/ai_assistant/results/.gitkeep
 
 # --- OS ------------------------------------------------------------------------
 .DS_Store

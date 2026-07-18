@@ -62,6 +62,12 @@ class Paths:
     ai_extraction_dir: Path
     ai_extraction_results_dir: Path
 
+    portfolio_engine_dir: Path
+    portfolio_results_dir: Path
+
+    ai_assistant_dir: Path
+    ai_assistant_results_dir: Path
+
     analytics_dir: Path
     reports_dir: Path
     charts_dir: Path
@@ -109,6 +115,10 @@ def get_paths() -> Paths:
         knowledge_base_entries_dir=app_dir / "knowledge_base" / "entries",
         ai_extraction_dir=app_dir / "ai_extraction",
         ai_extraction_results_dir=app_dir / "ai_extraction" / "results",
+        portfolio_engine_dir=app_dir / "portfolio_engine",
+        portfolio_results_dir=app_dir / "portfolio_engine" / "results",
+        ai_assistant_dir=app_dir / "ai_assistant",
+        ai_assistant_results_dir=app_dir / "ai_assistant" / "results",
         analytics_dir=app_dir / "analytics",
         reports_dir=app_dir / "analytics" / "reports",
         charts_dir=app_dir / "analytics" / "charts",
@@ -130,6 +140,8 @@ def get_paths() -> Paths:
         paths.research_results_dir,
         paths.knowledge_base_entries_dir,
         paths.ai_extraction_results_dir,
+        paths.portfolio_results_dir,
+        paths.ai_assistant_results_dir,
         paths.reports_dir,
         paths.charts_dir,
         paths.database_dir,
