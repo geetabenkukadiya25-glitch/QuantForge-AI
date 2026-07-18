@@ -169,6 +169,8 @@ try:
 except CSVFormatError as exc:
     st.error(f"Could not load historical data: {exc}")
     st.stop()
+finally:
+    tmp_path.unlink(missing_ok=True)
 
 base_configuration = BacktestConfiguration(
     symbol=symbol,
