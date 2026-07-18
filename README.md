@@ -15,8 +15,9 @@ Optimization → Analytics → Walk Forward → Monte Carlo →
 Risk Analysis → MT5 EA Generator
 ```
 
-> **Status: Phase 1-13 complete** (plus a Phase 14 Knowledge Base
-> submodule, added ahead of order by approval).
+> **Status: Phase 1-15 complete** (plus a Phase 14 Knowledge Base
+> submodule and a Portfolio Management Engine, both added ahead of order
+> by approval).
 > Phase 1 established the project architecture. Phase 2 added a
 > historical OHLCV data engine. Phase 3 added a professional chart
 > engine. Phase 4 added the Strategy Definition Language. Phase 5 added
@@ -49,7 +50,36 @@ Risk Analysis → MT5 EA Generator
 > generative AI model, and it NEVER calls an external API. It MUST NOT
 > generate trading ideas; every output is an explicit DRAFT requiring
 > human review before use, per `PROJECT_VISION.md`'s "AI assists, humans
-> approve" principle. See [docs/ROADMAP.md](docs/ROADMAP.md).
+> approve" principle. After Phase 13/14, the Professional Portfolio
+> Management Engine (`app/portfolio_engine/`) was added as another
+> approved-but-unplanned additive module (the same non-renumbering rule
+> as the Research Engine before it — `PROJECT_VISION.md`'s locked roadmap
+> still lists Phase 15 as "AI Research Assistant," unchanged) — it
+> combines multiple already-completed strategies into a single portfolio:
+> allocation (Equal Weight, Risk Parity, Volatility Weight, Sharpe
+> Weight, Manual Weight), correlation, exposure, ranking, and portfolio-
+> quality analytics. It NEVER trades, NEVER connects to a broker or MT5,
+> NEVER optimizes, and NEVER validates — only aggregation over
+> already-completed Strategy Builder/Backtesting (and optionally
+> Optimization/Validation/Replay/Research) outputs. Phase 15 — the
+> official Phase 15 of `PROJECT_VISION.md`'s Approved Roadmap — adds the
+> AI Research Assistant (`app/ai_assistant/`): a deterministic, offline
+> assistant that searches and explains data already present inside
+> QuantForge AI. It is NOT an LLM, NEVER connects to any external AI API
+> or service, and NEVER requires internet access — no embeddings, no
+> vector database. It is strictly read-only: it NEVER trades, optimizes,
+> validates, replays, or rebuilds a strategy. See
+> [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Future Institutional Roadmap
+
+Ideas for future, unapproved versions beyond the current roadmap —
+research governance, data governance, artifact management, workflow
+automation, risk infrastructure, institutional features, and a future
+cloud version — are tracked separately in
+[PROJECT_IDEAS.md](PROJECT_IDEAS.md). None of it is implemented,
+scheduled, or approved; the current project remains offline,
+deterministic, and research-only through Version 1.0.
 
 ## Tech stack
 
@@ -89,6 +119,10 @@ QuantForge AI/
 │   │   └── entries/
 │   ├── ai_extraction/                # Converts external strategy documents into draft SDL (Phase 13)
 │   │   └── results/
+│   ├── portfolio_engine/              # Multi-strategy portfolio allocation, correlation, ranking, analytics
+│   │   └── results/
+│   ├── ai_assistant/                   # Deterministic, offline search/explanations (Phase 15)
+│   │   └── results/
 │   ├── data/              # (future phase) live/multi-provider data sourcing
 │   │   ├── historical/
 │   │   └── downloads/
@@ -122,7 +156,9 @@ QuantForge AI/
 │   ├── replay_engine/                          # Replay Engine unit tests
 │   ├── research_engine/                         # Research & Strategy Intelligence Engine unit tests
 │   ├── knowledge_base/                           # Knowledge Base Platform unit tests
-│   └── ai_extraction/                             # AI Strategy Extraction Engine unit tests
+│   ├── ai_extraction/                             # AI Strategy Extraction Engine unit tests
+│   ├── portfolio_engine/                           # Portfolio Management Engine unit tests
+│   └── ai_assistant/                                # AI Research Assistant unit tests
 ├── docs/
 │   └── sdl/                            # SDL specification, schema reference, examples, dev guide
 ├── main.py

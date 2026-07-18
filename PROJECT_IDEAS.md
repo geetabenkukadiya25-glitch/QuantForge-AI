@@ -290,3 +290,162 @@ without explicit approval in a future phase.
   sessions to only offer candidates that passed a minimum robustness/
   confidence threshold. Not implemented here since Phase 12 doesn't
   exist yet.
+
+---
+
+# Institutional Roadmap (Future Versions)
+
+These are **future ideas only**. None of the items below are
+implemented, scheduled, or approved for any current phase. They are
+recorded here so they aren't lost, per `PROJECT_VISION.md`'s Out of
+Scope Rule — nothing in this section may be built without explicit
+approval opening a new, numbered phase.
+
+## Category 1 — Research Governance
+
+- Experiment Tracking System
+- Dataset Version Registry
+- Feature Version Registry
+- Strategy Version Registry
+- Random Seed Tracking
+- Result Lineage
+- Research Approval Workflow
+- Research Sign-off Process
+- Research Audit Trail
+
+## Category 2 — Data Governance
+
+- Data Catalog
+- Data Lineage
+- Data Provenance
+- Dataset Metadata
+- Vendor Registry
+- Schema Registry
+- Dataset Versioning
+- Point-in-Time Data
+- Corporate Action Handling
+- Survivorship Bias Protection
+- Data Quality Monitoring
+
+## Category 3 — Artifact Management
+
+- Artifact Registry
+- Result Registry
+- Model Registry
+- Feature Registry
+- Strategy Registry
+- Report Registry
+- Snapshot Registry
+
+## Category 4 — Workflow Automation
+
+- Workflow Engine
+- Pipeline Scheduler
+- Batch Execution
+- Dependency Graph
+- Distributed Research
+- Parallel Optimization
+- Queue Management
+- Retry Management
+
+## Category 5 — Risk Infrastructure
+
+- Risk Analytics Platform
+- Exposure Engine
+- Scenario Analysis
+- Stress Testing
+- Liquidity Analysis
+- Capacity Analysis
+- Market Impact Model
+- Transaction Cost Model
+- Risk Budgeting
+
+## Category 6 — Portfolio Evolution
+
+- Portfolio Attribution
+- Factor Attribution
+- Sector Exposure
+- Country Exposure
+- Constraint Engine
+- Advanced Portfolio Optimizer
+
+## Category 7 — Platform Operations
+
+- Observability
+- Telemetry
+- Metrics Dashboard
+- Cache Manager
+- Failure Recovery
+- Job Monitoring
+- Runtime Diagnostics
+
+## Category 8 — Institutional Features
+
+- Role Based Access Control
+- Permissions
+- Dataset Entitlements
+- Multi-user Workspace
+- Collaboration
+- Research Notes
+- Approval Chains
+
+## Category 9 — Reporting
+
+- Institutional Tear Sheets
+- Research Publishing
+- PDF Report Generator
+- HTML Reports
+- Executive Reports
+- Automated Reporting
+
+## Category 10 — Cloud Version (Future)
+
+- Cloud Compute
+- Remote Workers
+- Distributed Backtesting
+- Cloud Artifact Storage
+- Team Workspace
+- Web API
+- Authentication
+- Cloud Dashboard
+
+---
+
+# Nice To Have
+
+These are **optional** ideas, unrelated to the institutional roadmap
+above. Do NOT implement without explicit approval.
+
+- Live Broker Data Import
+- MT5 Live Feed
+- TradingView Import
+- Polygon Integration
+- TwelveData Integration
+- AlphaVantage Integration
+- Binance Data
+- Crypto Research
+- Options Research
+- Futures Research
+
+---
+
+# Current Status
+
+The current project is intentionally:
+
+- **Offline** — no external network calls required to operate
+- **Deterministic** — every engine produces reproducible, checksummed
+  output from the same input
+- **Research Only** — no live trading of any kind
+- **No Live Trading** — nothing in the codebase submits a live order
+- **No Broker Execution** — no MT5/broker connection exists anywhere
+  in the pipeline
+- **No External AI APIs** — no engine (including `app.ai_assistant`
+  and `app.ai_extraction`) calls an external AI model or service
+
+Everything listed in this file — the Institutional Roadmap and the
+Nice To Have list — is a **future idea**, not a commitment. These will
+only be considered for implementation **after Version 1.0 is
+complete**, and only through the same approval process already used
+for every phase in `docs/ROADMAP.md`: explicit approval, an additive
+module, no modification of completed engines, and full documentation.
