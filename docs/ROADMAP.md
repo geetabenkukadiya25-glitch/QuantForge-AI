@@ -691,10 +691,61 @@ metadata, checksum, generation report).
 
 175 new tests in `tests/ea_generator/`; full project suite green.
 
+## Phase 17 — Cloud Platform Foundation ✅
+
+The architectural foundation ONLY for a future cloud-hosted deployment,
+per `PROJECT_VISION.md`'s Approved Roadmap. This phase is completely
+OFFLINE: no authentication, no cloud synchronization, no networking, no
+APIs, no background workers, no databases, no websocket communication,
+no remote execution, and no external service calls. `app/cloud_platform/`
+is a management layer — it stores references (ids, names, checksums,
+free-text descriptions) to artifacts produced by other engines, and
+never inspects, imports, or depends on Backtesting, Optimization,
+Replay, Validation, Research, Portfolio, or EA Generator internals.
+
+- **`WorkspaceMetadata`** (`metadata.py`) — offline-only identity: a
+  caller-supplied `workspace_id` plus a free-text `label`, never an
+  authenticated user identity or credential.
+- **`ProjectReference`/`ResearchReference`/`DatasetReference`/`ArtifactReference`**
+  (`models.py`) — id/name/checksum-only references; checksums are
+  always caller-supplied, never recomputed by this engine.
+- **`CloudProject`/`CloudSnapshot`/`CloudWorkspace`/`CloudBuild`/`CloudReport`/`CloudStatistics`**
+  (`models.py`) — the full deterministic, checksummed, serializable
+  model tree this phase compiles.
+- **`CloudPlatformContext`** (`context.py`) — the caller-supplied draft
+  input (ids, names, pre-built references) the compiler consumes.
+- **`CloudValidator`** (`validator.py`) — structural validation only:
+  duplicate ids, invalid references, checksum format integrity,
+  metadata completeness, schema version, duplicate project names,
+  invalid timestamps, invalid workspace structure. No business logic.
+- **`CloudCompiler`** (`compiler.py`) — builds the immutable `CloudBuild`
+  and every checksum in its tree via the shared `app.core.checksums`
+  helper.
+- **`statistics.py`** — per-workspace and registry-wide aggregate counts.
+- **`CloudRegistry`** (`registry.py`) — in-memory metadata registry
+  (mirrors `ReplayRegistry`), enable/disable via `FeatureFlagManager`.
+  No cloud networking, no synchronization, no API calls, no filesystem
+  scanning.
+- **`CloudSerializer`** (`serializer.py`) — dict/JSON/YAML export.
+- **`report.py`** — a numbers-only executive report. No charts. No UI.
+- **`CloudPlatformRunner`/`CloudPlatformEngine`** (`runner.py`/`engine.py`) —
+  validate-then-compile orchestration behind the standard `BaseEngine`
+  facade.
+
+No Streamlit page and no new results directory in this phase — pure,
+in-memory architectural foundation only. Authentication, cloud sync,
+networking, APIs, background workers, databases, and remote execution
+all remain out of scope, reserved for later phases.
+
+73 new tests in `tests/cloud_platform/`; full project suite green.
+
 ## Future phases
 
-17. **Cloud Platform** — secure paid deployment: authentication, license
-    validation, cloud-hosted AI/EA/premium services.
+18. **Cloud Authentication & Synchronization** — user accounts, license
+    validation, and networked sync built on top of the Phase 17
+    foundation.
+19. **Cloud API & Hosted Services** — a networked API surface and
+    cloud-hosted AI/EA/premium services.
 
 Each phase turns one or more of the Phase 1 placeholders (which currently
 raise `NotImplementedYetError`) into a real implementation, following the
