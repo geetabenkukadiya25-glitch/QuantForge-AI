@@ -7,6 +7,7 @@ import pytest
 
 from app.ui.dataset_detection import (
     UNKNOWN,
+    detect_mismatch,
     detect_symbol,
     detect_symbol_from_filename,
     detect_timeframe,
@@ -215,3 +216,53 @@ def test_xau_5m_example_end_to_end() -> None:
     filename = "XAU_5m_data.csv"
     assert detect_symbol(None, filename, None) == "XAUUSD"
     assert detect_timeframe(None, filename, None) == "M5"
+
+
+# ---------------------------------------------------------------------
+# Strategy / dataset mismatch detection
+# ---------------------------------------------------------------------
+
+
+def test_mismatch_detected_when_symbol_and_timeframe_both_differ() -> None:
+    mismatch = detect_mismatch(("EURUSD",), ("M15",), "XAUUSD", "M5")
+    assert mismatch is not None
+    assert mismatch.symbol_mismatch is True
+    assert mismatch.timeframe_mismatch is True
+    assert mismatch.strategy_symbols == ("EURUSD",)
+    assert mismatch.strategy_timeframes == ("M15",)
+    assert mismatch.dataset_symbol == "XAUUSD"
+    assert mismatch.dataset_timeframe == "M5"
+
+
+def test_mismatch_detected_when_only_symbol_differs() -> None:
+    mismatch = detect_mismatch(("EURUSD",), ("M15",), "XAUUSD", "M15")
+    assert mismatch is not None
+    assert mismatch.symbol_mismatch is True
+    assert mismatch.timeframe_mismatch is False
+
+
+def test_mismatch_detected_when_only_timeframe_differs() -> None:
+    mismatch = detect_mismatch(("EURUSD",), ("M15",), "EURUSD", "M5")
+    assert mismatch is not None
+    assert mismatch.symbol_mismatch is False
+    assert mismatch.timeframe_mismatch is True
+
+
+def test_no_mismatch_when_both_match() -> None:
+    assert detect_mismatch(("EURUSD",), ("M15",), "EURUSD", "M15") is None
+
+
+def test_no_mismatch_when_symbol_matches_one_of_several_declared() -> None:
+    assert detect_mismatch(("EURUSD", "GBPUSD"), ("M15", "H1"), "GBPUSD", "H1") is None
+
+
+def test_no_mismatch_when_dataset_symbol_unknown() -> None:
+    assert detect_mismatch(("EURUSD",), ("M15",), UNKNOWN, "M5") is None
+
+
+def test_no_mismatch_when_dataset_timeframe_unknown() -> None:
+    assert detect_mismatch(("EURUSD",), ("M15",), "XAUUSD", UNKNOWN) is None
+
+
+def test_no_mismatch_when_both_unknown() -> None:
+    assert detect_mismatch(("EURUSD",), ("M15",), UNKNOWN, UNKNOWN) is None

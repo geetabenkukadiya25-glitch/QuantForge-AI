@@ -13,6 +13,7 @@ rebuild" discipline every engine in this platform follows.
 """
 
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -123,6 +124,55 @@ def detect_symbol(metadata: "DatasetMetadata | None", filename: str | None, df: 
             return str(attr_symbol)
 
     return UNKNOWN
+
+
+@dataclass(frozen=True)
+class DatasetMismatch:
+    """Describes a detected difference between what a strategy declares it
+    needs and the currently configured Symbol/Timeframe. Purely
+    informational/presentational -- never used to block or alter
+    execution."""
+
+    strategy_symbols: tuple[str, ...]
+    strategy_timeframes: tuple[str, ...]
+    dataset_symbol: str
+    dataset_timeframe: str
+
+    @property
+    def symbol_mismatch(self) -> bool:
+        return self.dataset_symbol not in self.strategy_symbols
+
+    @property
+    def timeframe_mismatch(self) -> bool:
+        return self.dataset_timeframe not in self.strategy_timeframes
+
+
+def detect_mismatch(
+    strategy_symbols: "tuple[str, ...] | list[str]",
+    strategy_timeframes: "tuple[str, ...] | list[str]",
+    dataset_symbol: str,
+    dataset_timeframe: str,
+) -> DatasetMismatch | None:
+    """Compare a strategy's declared requirements against the currently
+    configured Symbol/Timeframe.
+
+    Returns `None` when either configured value is unresolved ("Unknown")
+    or both match the strategy's declared requirements -- a
+    `DatasetMismatch` otherwise, for display-only use (never raises,
+    never blocks).
+    """
+    if dataset_symbol == UNKNOWN or dataset_timeframe == UNKNOWN:
+        return None
+
+    mismatch = DatasetMismatch(
+        strategy_symbols=tuple(strategy_symbols),
+        strategy_timeframes=tuple(strategy_timeframes),
+        dataset_symbol=dataset_symbol,
+        dataset_timeframe=dataset_timeframe,
+    )
+    if not mismatch.symbol_mismatch and not mismatch.timeframe_mismatch:
+        return None
+    return mismatch
 
 
 def detect_timeframe(metadata: "DatasetMetadata | None", filename: str | None, df: "pd.DataFrame | None") -> str:

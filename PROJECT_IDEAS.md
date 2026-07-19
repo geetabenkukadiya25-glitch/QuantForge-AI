@@ -411,6 +411,66 @@ approval opening a new, numbered phase.
 
 ---
 
+## Trade Score Threshold Sweep
+
+**Status: Future Version. Not for v1.1. Institutional Roadmap.**
+
+**Important:** This is NOT a separate engine. It is a future extension
+of the existing `app/optimization_engine/`, consuming its already-computed
+candidate outcomes -- never a new engine, never a duplicate of
+optimization/backtesting logic.
+
+### Objective
+
+Automatically evaluate a strategy across multiple Trade Score thresholds.
+
+### Example
+
+```
+Score >= 60
+Score >= 65
+Score >= 70
+Score >= 75
+Score >= 80
+Score >= 85
+Score >= 90
+```
+
+### Collect (per threshold)
+
+- Net Profit
+- Win Rate
+- Profit Factor
+- Sharpe
+- Sortino
+- Calmar
+- Recovery Factor
+- Drawdown
+- Consistency
+- Risk of Ruin
+- Trade Frequency
+- Equity Stability
+
+Automatically recommend the safest production threshold.
+
+### Future Expansion
+
+- Stop Loss Sweep
+- Take Profit Sweep
+- ATR Sweep
+- Session Sweep
+- News Filter Sweep
+- Liquidity Sweep
+- Spread Sweep
+- Risk Percentage Sweep
+- Multi Parameter Grid Search
+- Heatmap Visualization
+- Sensitivity Analysis
+- Walk Forward Threshold Validation
+- Monte Carlo Threshold Validation
+
+---
+
 # Nice To Have
 
 These are **optional** ideas, unrelated to the institutional roadmap

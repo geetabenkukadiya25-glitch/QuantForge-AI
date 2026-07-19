@@ -47,7 +47,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
-from app.ui.dataset_detection import detect_symbol, detect_timeframe
+from app.ui.dataset_detection import detect_mismatch, detect_symbol, detect_timeframe
 from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, render_debug_banner, render_debug_panel, save_dataset
 
 DEBUG = get_settings().debug
@@ -309,6 +309,24 @@ detected_symbol = detect_symbol(dataset_metadata, dataset_filename, data)
 detected_timeframe = detect_timeframe(dataset_metadata, dataset_filename, data)
 symbol = st.sidebar.text_input("Symbol", value=detected_symbol)
 timeframe = st.sidebar.text_input("Timeframe", value=detected_timeframe)
+
+# Informational only -- never blocks execution, never a popup, never a
+# forced confirmation. Compares what's about to be configured (symbol/
+# timeframe above, including any manual override) against the selected
+# strategy's declared requirements.
+mismatch = detect_mismatch(model.context_requirement.symbols, model.context_requirement.timeframes, symbol, timeframe)
+if mismatch is not None:
+    st.sidebar.warning(
+        "⚠ **Strategy / Dataset Mismatch**\n\n"
+        "**Strategy expects:**\n"
+        f"- Symbol: {', '.join(mismatch.strategy_symbols)}\n"
+        f"- Timeframe: {', '.join(mismatch.strategy_timeframes)}\n\n"
+        "**Uploaded Dataset:**\n"
+        f"- Symbol: {mismatch.dataset_symbol}\n"
+        f"- Timeframe: {mismatch.dataset_timeframe}\n\n"
+        "This strategy may not be suitable for the uploaded dataset."
+    )
+
 initial_balance = st.sidebar.number_input("Initial balance", min_value=1.0, value=10_000.0, step=1000.0)
 lot_size = st.sidebar.number_input("Lot size", min_value=0.01, value=1.0, step=0.1)
 spread_points = st.sidebar.number_input("Spread (points)", min_value=0.0, value=0.0, step=0.1)
