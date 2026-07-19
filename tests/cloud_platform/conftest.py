@@ -4,6 +4,9 @@ import pytest
 
 from app.cloud_platform.context import CloudPlatformContext, ProjectDraft, SnapshotDraft
 from app.cloud_platform.models import ArtifactReference, DatasetReference, ProjectReference, ResearchReference
+from app.cloud_platform.artifact_manager import CloudArtifactManager
+from app.cloud_platform.version_manager import CloudVersionManager
+from app.cloud_platform.workspace_manager import CloudWorkspaceManager
 from app.core.checksums import compute_checksum
 
 
@@ -51,3 +54,23 @@ def snapshot_draft() -> SnapshotDraft:
 @pytest.fixture
 def cloud_platform_context(project_draft, snapshot_draft) -> CloudPlatformContext:
     return CloudPlatformContext(workspace_id="workspace-1", label="Test Workspace", projects=(project_draft,), snapshots=(snapshot_draft,))
+
+
+@pytest.fixture
+def workspace_manager() -> CloudWorkspaceManager:
+    return CloudWorkspaceManager()
+
+
+@pytest.fixture
+def created_workspace(workspace_manager: CloudWorkspaceManager):
+    return workspace_manager.create_workspace("ws-1", label="Research Workspace")
+
+
+@pytest.fixture
+def artifact_manager() -> CloudArtifactManager:
+    return CloudArtifactManager()
+
+
+@pytest.fixture
+def version_manager() -> CloudVersionManager:
+    return CloudVersionManager()

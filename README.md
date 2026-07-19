@@ -84,8 +84,32 @@ Risk Analysis → MT5 EA Generator
 > databases, no websocket communication, no remote execution, and no
 > external service calls. It is a management layer that stores
 > references (ids, names, checksums) to artifacts produced by other
-> engines, and never inspects their internals. See
-> [docs/ROADMAP.md](docs/ROADMAP.md).
+> engines, and never inspects their internals. Phase 17.1 builds Cloud
+> Workspace Management directly on top of that foundation (still inside
+> `app/cloud_platform/`, no new engine): local, offline research
+> workspace/project lifecycle management (create, open, close, rename,
+> archive, restore, soft-delete, favorite, tags, notes, snapshot) with a
+> deterministic, checksummed history. Still 100% offline — no
+> authentication, no users, no cloud sync, no networking, no APIs, no
+> background workers, no database, no file upload, no remote execution.
+> Phase 17.2 adds the Local Artifact Registry (still inside
+> `app/cloud_platform/`, no new engine): a deterministic registry
+> managing ONLY metadata and references for every research artifact
+> QuantForge AI produces (datasets, strategies, SDL, compiled
+> strategies, every engine's results, snapshots, reports, and more),
+> including dependency tracking with cycle detection. It is NOT cloud
+> storage and NOT a filesystem indexer — it never inspects an
+> artifact's actual content. Still 100% offline — no authentication, no
+> users, no organizations, no permissions, no networking, no APIs, no
+> database, no broker/MetaTrader/execution-engine code. Phase 17.3 adds
+> a Project Versioning & Snapshot System (still inside
+> `app/cloud_platform/`, no new engine) — an internal, deterministic
+> version-history layer (NOT Git, NOT source-code versioning) for
+> workspaces, artifacts, and 13 other object types: branching version
+> trees, checksum-based comparison, and restore-by-new-version (never
+> by mutating history). Still 100% offline — no authentication, no
+> users, no networking, no database, no workers, no broker/MetaTrader/
+> execution-engine code. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Future Institutional Roadmap
 

@@ -409,6 +409,85 @@ approval opening a new, numbered phase.
 - Authentication
 - Cloud Dashboard
 
+## Category 11 — Phase 17.2 Future Enhancements
+
+These are **future ideas only**, recorded alongside the Phase 17.2
+Local Artifact Registry foundation. None are implemented, scheduled, or
+approved for any current phase.
+
+1. **Experiment Tracking Platform** — track every research run with
+   dataset version, strategy version, parameters, random seed, engine
+   version, artifacts, checksum, and a reproducibility certificate.
+
+2. **Data Catalog & Lineage** — complete dataset provenance, a lineage
+   graph, schema history, source tracking, checksum verification, and
+   downstream dependency visualization.
+
+3. **Artifact Version Registry** — an automatic version graph for every
+   dataset, strategy, report, and research artifact, with rollback
+   capability.
+
+4. **Workflow Orchestration Engine** — deterministic batch execution,
+   dependency-aware scheduling, research pipelines, Monte Carlo
+   batches, optimization sweeps, and workflow history.
+
+5. **Institutional Risk Analytics** — exposure decomposition, scenario
+   analysis, stress testing, concentration analysis, liquidity
+   analysis, capacity analysis, and transaction cost modelling.
+
+6. **Research Governance** — approval workflow, sign-off process, audit
+   trail, research certification, and reproducibility reports.
+
+7. **Observability Platform** — runtime diagnostics, cache statistics,
+   execution telemetry, performance monitoring, and health analytics.
+
+8. **Distributed Research Computing** — a future distributed execution
+   architecture with deterministic reproducibility guarantees.
+
+9. **Research Publishing Platform** — institutional tear sheets,
+   publication-ready reports, experiment comparison, and automated
+   documentation.
+
+10. **Trade Score Threshold Sweep Engine** — Future enhancement only.
+    Integrate with the existing Trade Score Engine instead of
+    probability thresholds. Support score sweeps such as `>=60`,
+    `>=65`, `>=70`, `>=75`, `>=80`, `>=85`, `>=90`. Automatically
+    compare every score threshold and recommend the safest
+    production-ready score using institutional metrics instead of
+    maximum profit.
+
+Do NOT implement any of these now. This is documentation only.
+
+## Category 12 — Phase 17.3 Future Enhancements
+
+These are **future ideas only**, recorded alongside the Phase 17.3
+Project Versioning & Snapshot System foundation. None are implemented,
+scheduled, or approved for any current phase.
+
+- **Dataset Time-Travel** — reconstruct a dataset's exact state at any
+  past version for reproducibility.
+- **Version Diff Viewer** — a visual side-by-side rendering of
+  `VersionComparison`'s output.
+- **Snapshot Compression** — space-efficient storage for large snapshot
+  histories.
+- **Automatic Snapshot Policies** — configurable, deterministic
+  triggers for when a new snapshot is taken.
+- **Immutable Research Timeline** — a unified, cross-subject timeline
+  view spanning every versioned object in a workspace.
+- **Dataset Fingerprinting** — content-based fingerprints for detecting
+  duplicate or near-duplicate datasets across versions.
+- **Strategy Evolution Graph** — a visual rendering of a strategy's
+  full version tree, including branches.
+- **Experiment Lineage Viewer** — traces a result backward through its
+  full version and dependency chain.
+- **Rollback Assistant** — guided, safety-checked `restore_snapshot`
+  workflows.
+- **Reproducibility Certificate Generator** — a signed, checksummed
+  document proving a version's inputs, parameters, and outputs are
+  reproducible.
+
+Do NOT implement any of these now. This is documentation only.
+
 ---
 
 ## Trade Score Threshold Sweep

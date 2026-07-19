@@ -1312,6 +1312,186 @@ No Streamlit page in this phase — pure architectural foundation, no UI.
 
 73 new tests in `tests/cloud_platform/`; full project suite green.
 
+### Cloud Workspace Management (Phase 17.1)
+
+Built directly on top of the Cloud Platform Foundation above, in the
+same `app/cloud_platform/` package (5 new files, no new engine). Manages
+local, offline research workspaces: create/open/close/rename/archive/
+restore/soft-delete/favorite/tags/notes/snapshot at the workspace level,
+plus create/rename/archive/restore/soft-delete/favorite/tags/notes at
+the project level. Still 100% OFFLINE — no authentication, no users, no
+organizations, no permissions, no cloud sync, no networking, no REST/
+GraphQL APIs, no websockets, no background workers, no database, no
+remote storage, no external API calls, no file upload, no remote
+execution.
+
+- **`workspace.py`** — immutable models wrapping (never duplicating)
+  the Foundation's `CloudWorkspace`/`CloudBuild`: `WorkspaceStatus`/
+  `ProjectStatus` (ACTIVE/ARCHIVED/DELETED — soft delete only),
+  `WorkspaceHistoryEventType`, the checksummed `WorkspaceHistoryEvent`,
+  `ProjectRecord` (lifecycle-only: status/favorite/tags/notes, keyed by
+  `project_id`, holding no project content of its own), and
+  `WorkspaceRecord` (the complete lifecycle state: a reused `CloudBuild`
+  plus status/open/favorite/tags/notes/project records/history). Its
+  `.workspace` property forwards to `build.workspace` — no duplicated
+  data in serialization.
+- **`workspace_manager.py`** — `CloudWorkspaceManager`, the single
+  entrypoint for every lifecycle operation. Reuses `CloudCompiler` to
+  (re)compile the underlying `CloudWorkspace` whenever structure changes
+  (rename, add/rename project, snapshot) and `CloudValidator` for
+  structural validation before every recompile; every mutation produces
+  a brand-new immutable `WorkspaceRecord` with an incremented version
+  and an appended, checksummed history event — nothing is ever mutated
+  in place. Also hosts `WorkspaceValidator` (duplicate ids, invalid
+  metadata/references via the reused `CloudValidator`, checksum
+  mismatch, history consistency, snapshot consistency, version
+  compatibility) and the state-transition exceptions
+  (`WorkspaceAlreadyExistsError`, `InvalidWorkspaceStateError`,
+  `InvalidProjectStateError`, `WorkspaceValidationError`, ...).
+- **`workspace_registry.py`** — `CloudWorkspaceRegistry`, an in-memory
+  registry mirroring `CloudRegistry`'s shape (enable/disable via
+  `FeatureFlagManager`), keyed by the workspace's own stable id rather
+  than a fresh id per build: `register` replaces the current version and
+  retains every prior version for `version_history()`. Convenience
+  filters: `list_active`/`list_archived`/`list_deleted`/`list_favorites`/
+  `search_by_tag`.
+- **`workspace_statistics.py`** — `compute_workspace_statistics`
+  extends (never duplicates) `app.cloud_platform.statistics.compute_statistics`
+  with active/archived/deleted counts, favorites, tags, history length,
+  and metadata completeness; `aggregate_workspace_statistics` sums
+  across many records.
+- **`workspace_report.py`** — `WorkspaceReport`: `workspace_summary`,
+  `project_summary`/`history_summary` (`pandas.DataFrame`),
+  `statistics_summary`, `validation_summary`, and a combined
+  `executive_summary` that reuses `CloudPlatformReport` for the
+  underlying build's own summary. No charts. No UI.
+
+No Streamlit page in this phase either — pure workspace-management
+logic, no UI.
+
+83 new tests in `tests/cloud_platform/` (`test_workspace_*.py`); full
+project suite green.
+
+### Local Artifact Registry (Phase 17.2)
+
+Built directly on top of the Cloud Platform Foundation and Workspace
+Management above, in the same `app/cloud_platform/` package (5 new
+files, no new engine). A deterministic registry that manages ONLY
+metadata and references describing every research artifact created
+inside QuantForge AI (datasets, strategies, SDL, compiled strategies,
+backtest/optimization/validation/replay/research/knowledge/portfolio/EA
+Generator results, cloud/workspace snapshots, reports, statistics,
+configuration, documentation, and future custom types). It is NOT cloud
+storage and NOT a filesystem indexer -- it never reads, inspects, or
+depends on an artifact's actual content, and never holds a filesystem
+path. Still 100% OFFLINE — no authentication, no users, no
+organizations, no permissions, no networking, no REST/GraphQL APIs, no
+cloud sync, no database, no websockets, no background workers, no
+remote storage, no external API calls, no broker connections, no
+MetaTrader, no execution engine.
+
+- **`artifact.py`** — `ArtifactType` (19 supported types, including
+  `CUSTOM` for future artifacts), `ArtifactStatus` (ACTIVE/ARCHIVED/
+  DELETED — soft delete only), `ArtifactHistoryEventType`, the
+  checksummed `ArtifactHistoryEvent`, and `ArtifactRecord` (the full
+  required field set: `artifact_id`, `artifact_type`, `name`,
+  `description`, `workspace_id`, `project_id`, `source_module`,
+  `version`, `checksum`, `creation_time`, `modified_time`, `status`,
+  `tags`, `notes`, `dependencies`, `references`, `metadata`, `history`,
+  plus `is_favorite`). `dependencies` are other artifact ids in the same
+  registry (a same-registry dependency graph); `references` reuses the
+  Foundation's `ArtifactReference` model directly for checksum-only
+  pointers to content outside this registry.
+- **`artifact_manager.py`** — `CloudArtifactManager`: Create, Rename,
+  Archive, Restore, Delete (soft), Favorite, Tag, Notes, Version
+  Increment, Snapshot, Reference Update, Metadata Update, and
+  dependency-add operations. Every mutation produces a brand-new
+  immutable `ArtifactRecord` with an incremented version and an
+  appended checksummed history event. Also hosts `ArtifactValidator`
+  (duplicate ids, duplicate checksums, invalid references, broken
+  dependency chains, invalid versions, checksum mismatch, history
+  mismatch, metadata errors) and the state-transition/dependency
+  exceptions (`ArtifactAlreadyExistsError`, `InvalidArtifactStateError`,
+  `DependencyNotFoundError`, `DependencyCycleError`,
+  `ArtifactValidationError`).
+- **`artifact_registry.py`** — `CloudArtifactRegistry`: in-memory,
+  keyed by stable artifact id, retains every version for
+  `version_history()`, plus `list_by_type`/`list_by_workspace`/
+  `list_by_project`/`dependents_of`/`dependency_graph`. Also exports the
+  pure `find_dependency_cycle()` DFS helper used by both the manager
+  (blocking a mutation that would create a cycle before it commits) and
+  the validator (diagnosing an existing registry's integrity).
+- **`artifact_statistics.py`** — `compute_artifact_registry_statistics`:
+  artifact count, active/archived/deleted, favorites, by type, by
+  workspace, by project, dependency count, history count, metadata
+  completeness, checksum.
+- **`artifact_report.py`** — `ArtifactReport`: Artifact Summary,
+  Dependency Summary (registry-resolved when a registry is supplied),
+  History Summary, Statistics Summary, Validation Summary, and a
+  combined Executive Summary. No charts.
+
+No Streamlit page in this phase either — pure registry logic, no UI.
+
+89 new tests in `tests/cloud_platform/` (`test_artifact_*.py`); full
+project suite green.
+
+### Project Versioning & Snapshot System (Phase 17.3)
+
+Built directly on top of the Cloud Platform Foundation, Workspace
+Management, and Local Artifact Registry above, in the same
+`app/cloud_platform/` package (5 new files, no new engine). This is NOT
+Git and NOT source-code versioning -- it is an internal, deterministic
+version-history layer over objects already managed elsewhere
+(workspaces, artifacts, and 13 other subject types, including future
+custom ones). It never inspects a versioned subject's actual content --
+only a caller-supplied `snapshot_checksum` identifying it at a point in
+time. Still 100% OFFLINE — no authentication, no users, no
+organizations, no permissions, no networking, no REST API, no cloud
+sync, no database, no workers, no background jobs, no websockets, no
+remote storage, no external APIs, no broker, no MetaTrader, no
+execution engine.
+
+- **`versioning.py`** — `VersionSubjectType` (WORKSPACE/PROJECT/
+  ARTIFACT/RESEARCH/STRATEGY/PORTFOLIO/KNOWLEDGE/BACKTEST/OPTIMIZATION/
+  VALIDATION/REPLAY/EA_GENERATOR/REPORT/STATISTICS/CUSTOM),
+  `VersionStatus` (ACTIVE/ARCHIVED/DELETED — soft delete only), the
+  checksummed `VersionHistory` event, `VersionReference` (a
+  checksum-only pointer to another specific version), `VersionSnapshot`
+  (a point-in-time content-identity capture), `VersionRecord` (the full
+  required field set: `version_id`, `parent_version`, `version_number`,
+  `created_time`, `checksum`, `snapshot_checksum`, `workspace_id`,
+  `project_id`, `artifact_id`, `change_summary`, `author`, `status`,
+  `metadata`, `references`, `history`, plus `tags`/`notes`/
+  `is_favorite`), `VersionComparison` (the deterministic diff of two
+  versions), and `VersionSummary` (a lightweight timeline/tree view).
+- **`version_manager.py`** — `CloudVersionManager`: Create Version,
+  Snapshot, Restore Snapshot (creates a brand-new version carrying an
+  old version's content identity, never mutates the old one), Compare
+  Versions (checksum/metadata/references/history/timestamps/version
+  numbers, plus dependencies when an optional, reused
+  `CloudArtifactRegistry` is supplied and the subject is an artifact),
+  Latest/Previous/Next Version, Version Tree (branches -- multiple
+  versions may share a parent), Version Timeline, Notes, Tags,
+  Favorite, Archive, Soft Delete. Also hosts `VersionValidator`
+  (duplicate versions, broken parent chains, invalid version numbers,
+  checksum mismatch, snapshot mismatch, history mismatch, reference
+  mismatch, metadata errors).
+- **`version_registry.py`** — `CloudVersionRegistry`: in-memory, keyed
+  by stable version id, retains every lifecycle state, plus
+  `list_by_subject`/`children_of`/`tree_of` and registered
+  `VersionSnapshot` storage/lookup.
+- **`version_statistics.py`** — version count, snapshot count, latest
+  version number, average versions per artifact, archived/deleted/
+  favorite counts, history count, metadata completeness, checksum.
+- **`version_report.py`** — Executive Summary, Version Summary,
+  Snapshot Summary, Comparison Summary, History Summary, Statistics
+  Summary, Validation Summary. No charts.
+
+No Streamlit page in this phase either — pure versioning logic, no UI.
+
+89 new tests in `tests/cloud_platform/` (`test_version_*.py`); full
+project suite green.
+
 ## Pipeline
 
 ```
