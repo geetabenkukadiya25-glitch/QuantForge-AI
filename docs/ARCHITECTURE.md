@@ -1249,6 +1249,69 @@ output filename, risk parameter inputs, Generate EA, source code
 preview, download button, metadata, checksum, and a generation report
 with per-section tables).
 
+## Cloud Platform (`app/cloud_platform/`)
+
+Phase 17 of `PROJECT_VISION.md`'s Approved Roadmap: the architectural
+foundation ONLY for a future cloud-hosted deployment. This phase is
+completely OFFLINE — it implements no authentication, no cloud
+synchronization, no networking, no APIs, no background workers, no
+databases, no websocket communication, no remote execution, and calls
+no external service. It is a management layer: it stores references
+(ids, names, checksums, free-text descriptions) to artifacts produced
+by other engines, and never inspects, imports, or depends on
+Backtesting, Optimization, Replay, Validation, Research, Portfolio, or
+EA Generator internals — it only manages references.
+
+- **`WorkspaceMetadata`** (`metadata.py`) — static identity/versioning
+  carried onto a `CloudWorkspace`: a caller-supplied `workspace_id`, a
+  free-text `label` (never an authenticated identity or credential),
+  and schema/result version strings.
+- **`ProjectReference`/`ResearchReference`/`DatasetReference`/`ArtifactReference`**
+  (`models.py`) — id/name/checksum-only references to artifacts
+  produced elsewhere; the checksum is always caller-supplied (the
+  referenced artifact's own content hash), never recomputed here.
+- **`CloudProject`/`CloudSnapshot`/`CloudWorkspace`** (`models.py`) —
+  the compiled, immutable, checksummed structure: a project groups
+  references, a snapshot captures which projects a workspace held at a
+  point in time (by id), and a workspace holds all of a workspace's
+  projects and snapshots.
+- **`CloudPlatformContext`/`ProjectDraft`/`SnapshotDraft`** (`context.py`) —
+  the caller-supplied draft input the compiler consumes: ids, names,
+  and pre-built reference models only, mirroring the "consume, never
+  rebuild" boundary pattern established in `app/ui/dataset_detection.py`.
+- **`CloudValidator`** (`validator.py`) — structural checks only:
+  duplicate ids, invalid/malformed references, checksum *format*
+  integrity (a well-formed SHA-256 hex digest — never recomputed
+  content), metadata completeness, schema version, duplicate project
+  names, invalid (naive) timestamps, and invalid workspace structure.
+  No business logic.
+- **`CloudCompiler`** (`compiler.py`) — builds the immutable
+  `CloudBuild` and every checksum in its tree via the shared
+  `app.core.checksums` helper; hashing logic is never duplicated.
+  Identity/timestamp fields are excluded from each checksum payload, so
+  two compilations of the same context produce the same checksums.
+- **`compute_statistics`/`aggregate_registry_statistics`** (`statistics.py`) —
+  deterministic per-workspace counts (projects, snapshots, research/
+  dataset/artifact references) plus a registry-wide sum across many
+  `CloudBuild`s.
+- **`CloudRegistry`** (`registry.py`) — an in-memory registry (mirrors
+  `ReplayRegistry`'s shape) keyed by `result_id`, storing ONLY
+  metadata. No cloud networking, no synchronization, no API calls, no
+  filesystem scanning. Enable/disable via `FeatureFlagManager`.
+- **`CloudSerializer`** (`serializer.py`) — dict/JSON/YAML export.
+- **`build_executive_report`/`CloudPlatformReport`** (`report.py`) — a
+  numbers-only executive summary (`CloudReport`) plus read-only
+  `pandas.DataFrame` views over a compiled `CloudBuild`. No charts. No UI.
+- **`CloudPlatformRunner`** (`runner.py`) — orchestrates
+  validate-then-compile, mirroring `ReplayRunner`'s "never raises,
+  inspect `.is_successful`" `try_execute` shape plus a raising `execute()`.
+- **`CloudPlatformEngine`** (`engine.py`) — the top-level `BaseEngine`
+  facade (`run` aliases `execute`).
+
+No Streamlit page in this phase — pure architectural foundation, no UI.
+
+73 new tests in `tests/cloud_platform/`; full project suite green.
+
 ## Pipeline
 
 ```

@@ -75,7 +75,16 @@ Risk Analysis → MT5 EA Generator
 > Advisor source code from an already-built `StrategyModel`. It does
 > NOT compile MT5, does NOT execute trades, does NOT connect to a
 > broker, does NOT call MetaTrader, does NOT run a Python bridge, and
-> does NOT call any external API — it only generates source code. See
+> does NOT call any external API — it only generates source code. Phase
+> 17 — the official Phase 17 of `PROJECT_VISION.md`'s Approved Roadmap —
+> adds the Cloud Platform Foundation (`app/cloud_platform/`): the
+> architectural foundation ONLY for a future cloud-hosted deployment.
+> This phase is completely OFFLINE — no authentication, no cloud
+> synchronization, no networking, no APIs, no background workers, no
+> databases, no websocket communication, no remote execution, and no
+> external service calls. It is a management layer that stores
+> references (ids, names, checksums) to artifacts produced by other
+> engines, and never inspects their internals. See
 > [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Future Institutional Roadmap
@@ -132,6 +141,7 @@ QuantForge AI/
 │   │   └── results/
 │   ├── ea_generator/                    # Offline MQL5 EA source-code generator (Phase 16)
 │   │   └── results/
+│   ├── cloud_platform/                   # Cloud Platform Foundation -- offline, in-memory (Phase 17)
 │   ├── data/              # (future phase) live/multi-provider data sourcing
 │   │   ├── historical/
 │   │   └── downloads/
@@ -168,7 +178,8 @@ QuantForge AI/
 │   ├── ai_extraction/                             # AI Strategy Extraction Engine unit tests
 │   ├── portfolio_engine/                           # Portfolio Management Engine unit tests
 │   ├── ai_assistant/                                # AI Research Assistant unit tests
-│   └── ea_generator/                                 # EA Generator Engine unit tests
+│   ├── ea_generator/                                 # EA Generator Engine unit tests
+│   └── cloud_platform/                                # Cloud Platform Foundation unit tests
 ├── docs/
 │   └── sdl/                            # SDL specification, schema reference, examples, dev guide
 ├── main.py
