@@ -24,6 +24,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
+from app.ui.progress import ProgressTracker, RESEARCH_STEPS, tracked_step
 
 st.set_page_config(page_title="Research Dashboard - QuantForge AI", page_icon="🧠", layout="wide")
 
@@ -122,22 +123,27 @@ def _build_record(name: str) -> StrategyRecord | None:
 
 
 if st.sidebar.button("Run Research", type="primary"):
-    with st.spinner("Building and backtesting selected strategies..."):
+    progress_placeholder = st.sidebar.empty()
+    tracker = ProgressTracker(RESEARCH_STEPS)
+    with tracked_step(tracker, 0, progress_placeholder):
         records = [r for r in (_build_record(name) for name in choices) if r is not None]
 
     if not records:
         st.error("No selected strategy built and backtested successfully.")
         st.stop()
 
-    configuration = ResearchConfiguration(
-        ranking_metric=RankingMetric(ranking_metric_label),
-        min_trades_for_confidence=int(min_trades),
-        max_acceptable_drawdown_pct=float(max_drawdown_pct),
-        institutional_min_score=float(institutional_min_score),
-    )
-    engine = ResearchEngine()
-    with st.spinner("Running research analysis..."):
+    with tracked_step(tracker, 1, progress_placeholder):
+        configuration = ResearchConfiguration(
+            ranking_metric=RankingMetric(ranking_metric_label),
+            min_trades_for_confidence=int(min_trades),
+            max_acceptable_drawdown_pct=float(max_drawdown_pct),
+            institutional_min_score=float(institutional_min_score),
+        )
+        engine = ResearchEngine()
         st.session_state.research_session = engine.try_execute(tuple(records), configuration)
+
+    with tracked_step(tracker, 2, progress_placeholder):
+        pass
 
 if "research_session" not in st.session_state:
     st.stop()

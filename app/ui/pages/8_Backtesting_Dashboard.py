@@ -48,6 +48,7 @@ from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
 from app.ui.dataset_detection import detect_mismatch, detect_symbol, detect_timeframe
+from app.ui.progress import BACKTEST_STEPS, ProgressTracker, make_item_progress_callback, tracked_step
 from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, render_debug_banner, render_debug_panel, save_dataset
 
 DEBUG = get_settings().debug
@@ -367,16 +368,26 @@ except Exception as exc:
 _step(6, "Engine Created")
 
 if st.sidebar.button("Run Backtest", type="primary"):
+    progress_placeholder = st.sidebar.empty()
+    tracker = ProgressTracker(BACKTEST_STEPS)
+    with tracked_step(tracker, 0, progress_placeholder):
+        pass
+
     # -------------------------------------------------------------
     # STEP 7 / 8: Running Simulation
     # -------------------------------------------------------------
-    _step(7, "Running Simulation...")
-    try:
-        st.session_state.backtest_session = engine.try_execute(model, data, configuration)
-    except Exception as exc:
-        _step_failed(7, "Running Simulation (engine.try_execute)", exc)
-        raise
-    _step(8, "Simulation Complete")
+    with tracked_step(tracker, 1, progress_placeholder):
+        _step(7, "Running Simulation...")
+        try:
+            candle_progress_callback = make_item_progress_callback(tracker, progress_placeholder)
+            st.session_state.backtest_session = engine.try_execute(model, data, configuration, progress_callback=candle_progress_callback)
+        except Exception as exc:
+            _step_failed(7, "Running Simulation (engine.try_execute)", exc)
+            raise
+        _step(8, "Simulation Complete")
+
+    with tracked_step(tracker, 2, progress_placeholder):
+        pass
 
 if "backtest_session" not in st.session_state:
     if DEBUG:

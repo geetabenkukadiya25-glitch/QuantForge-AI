@@ -22,6 +22,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry
 from app.strategy_builder import StrategyBuilder, StrategyContext
+from app.ui.progress import EA_GENERATOR_STEPS, ProgressTracker, tracked_step
 
 st.set_page_config(page_title="EA Generator - QuantForge AI", page_icon="\U0001f9be", layout="wide")
 
@@ -92,28 +93,33 @@ def _build_strategy_model():
 
 
 if st.sidebar.button("Generate EA", type="primary"):
-    with st.spinner("Building strategy model..."):
+    progress_placeholder = st.sidebar.empty()
+    tracker = ProgressTracker(EA_GENERATOR_STEPS)
+    with tracked_step(tracker, 0, progress_placeholder):
         model = _build_strategy_model()
 
     if model is None:
         st.error("Could not build the selected strategy. See sidebar warnings.")
         st.stop()
 
-    configuration = EAGeneratorConfiguration(
-        output_filename=output_filename,
-        ea_name=ea_name or None,
-        author=author,
-        magic_number=int(magic_number),
-        lot_size=float(lot_size),
-        stop_loss_points=float(stop_loss_points),
-        take_profit_points=float(take_profit_points),
-        max_open_positions=int(max_open_positions),
-        include_comments=bool(include_comments),
-    )
+    with tracked_step(tracker, 1, progress_placeholder):
+        configuration = EAGeneratorConfiguration(
+            output_filename=output_filename,
+            ea_name=ea_name or None,
+            author=author,
+            magic_number=int(magic_number),
+            lot_size=float(lot_size),
+            stop_loss_points=float(stop_loss_points),
+            take_profit_points=float(take_profit_points),
+            max_open_positions=int(max_open_positions),
+            include_comments=bool(include_comments),
+        )
 
-    engine = EAGeneratorEngine()
-    with st.spinner("Generating EA source code..."):
+        engine = EAGeneratorEngine()
         st.session_state.ea_session = engine.try_execute(model, configuration)
+
+    with tracked_step(tracker, 2, progress_placeholder):
+        pass
 
 if "ea_session" not in st.session_state:
     st.info("Select a strategy and click 'Generate EA' in the sidebar.")

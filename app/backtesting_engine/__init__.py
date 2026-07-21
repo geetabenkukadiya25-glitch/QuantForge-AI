@@ -47,7 +47,7 @@ from app.backtesting_engine.position import PositionManager
 from app.backtesting_engine.registry import BacktestRegistry
 from app.backtesting_engine.runner import BacktestRunner, BacktestSession, BaseBacktestRunner, SessionStatus
 from app.backtesting_engine.serializer import BacktestSerializer
-from app.backtesting_engine.simulator import SimulationOutput, TradeSimulator
+from app.backtesting_engine.simulator import ProgressCallback, SimulationOutput, TradeSimulator
 from app.backtesting_engine.statistics import DrawdownAnalyzer, PerformanceAnalyzer, StatisticsEngine
 from app.backtesting_engine.validator import BacktestValidator, ValidationIssue, ValidationResult
 
@@ -82,6 +82,7 @@ __all__ = [
     "ExecutionEvent",
     "TradeSimulator",
     "SimulationOutput",
+    "ProgressCallback",
     "PositionManager",
     "OrderSimulator",
     "PendingOrder",

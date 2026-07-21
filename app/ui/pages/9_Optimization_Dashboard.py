@@ -34,6 +34,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
+from app.ui.progress import OPTIMIZATION_STEPS, ProgressTracker, tracked_step
 
 st.set_page_config(page_title="Optimization Dashboard - QuantForge AI", page_icon="🧪", layout="wide")
 
@@ -197,11 +198,16 @@ engine = OptimizationEngine(
 )
 
 if st.sidebar.button("Run Optimization", type="primary"):
-    parameter_space = _build_parameter_space(param_rows)
-    with st.spinner("Optimization Progress: evaluating candidates..."):
+    progress_placeholder = st.sidebar.empty()
+    tracker = ProgressTracker(OPTIMIZATION_STEPS)
+    with tracked_step(tracker, 0, progress_placeholder):
+        parameter_space = _build_parameter_space(param_rows)
+    with tracked_step(tracker, 1, progress_placeholder):
         st.session_state.optimization_session = engine.try_execute(
             base_model, data, base_configuration, parameter_space, optimization_configuration
         )
+    with tracked_step(tracker, 2, progress_placeholder):
+        pass
 
 if "optimization_session" not in st.session_state:
     st.stop()

@@ -33,6 +33,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
+from app.ui.progress import ProgressTracker, VALIDATION_STEPS, tracked_step
 from app.validation_engine import (
     MonteCarloConfiguration,
     MonteCarloMethod,
@@ -175,35 +176,40 @@ base_configuration = BacktestConfiguration(
 )
 
 if st.sidebar.button("Run Optimization + Validation", type="primary"):
-    parameter_space = _build_parameter_space(param_rows)
-    opt_configuration = OptimizationConfiguration(
-        strategy_id=base_model.metadata.id, symbol=symbol, timeframe=timeframe,
-        search_method=SearchMethod.GRID, objective=Objective(objective_label), max_candidates=int(max_candidates),
-    )
-    opt_engine = OptimizationEngine(
-        indicator_engine=IndicatorEngine(registry=st.session_state.indicator_registry),
-        smart_money_engine=SmartMoneyEngine(registry=st.session_state.smc_registry),
-    )
-    with st.spinner("Running optimization..."):
+    progress_placeholder = st.sidebar.empty()
+    tracker = ProgressTracker(VALIDATION_STEPS)
+    with tracked_step(tracker, 0, progress_placeholder):
+        parameter_space = _build_parameter_space(param_rows)
+        opt_configuration = OptimizationConfiguration(
+            strategy_id=base_model.metadata.id, symbol=symbol, timeframe=timeframe,
+            search_method=SearchMethod.GRID, objective=Objective(objective_label), max_candidates=int(max_candidates),
+        )
+        opt_engine = OptimizationEngine(
+            indicator_engine=IndicatorEngine(registry=st.session_state.indicator_registry),
+            smart_money_engine=SmartMoneyEngine(registry=st.session_state.smc_registry),
+        )
+    with tracked_step(tracker, 1, progress_placeholder):
         opt_session = opt_engine.try_execute(base_model, data, base_configuration, parameter_space, opt_configuration)
     st.session_state.opt_session = opt_session
 
     if opt_session.is_successful:
-        wf_configuration = WalkForwardConfiguration(
-            window_type=WindowType(window_type_label), in_sample_bars=int(in_sample_bars), out_of_sample_bars=int(out_of_sample_bars),
-            objective=Objective(objective_label),
-        )
-        mc_configuration = MonteCarloConfiguration(method=MonteCarloMethod(mc_method_label), iterations=int(mc_iterations), random_seed=int(mc_seed))
-        val_configuration = ValidationConfiguration(
-            strategy_id=base_model.metadata.id, symbol=symbol, timeframe=timeframe,
-            run_walk_forward=True, run_monte_carlo=True, walk_forward=wf_configuration, monte_carlo=mc_configuration,
-        )
-        val_engine = ValidationEngine(
-            indicator_engine=IndicatorEngine(registry=st.session_state.indicator_registry),
-            smart_money_engine=SmartMoneyEngine(registry=st.session_state.smc_registry),
-        )
-        with st.spinner("Running walk-forward and Monte Carlo validation..."):
+        with tracked_step(tracker, 2, progress_placeholder):
+            wf_configuration = WalkForwardConfiguration(
+                window_type=WindowType(window_type_label), in_sample_bars=int(in_sample_bars), out_of_sample_bars=int(out_of_sample_bars),
+                objective=Objective(objective_label),
+            )
+            mc_configuration = MonteCarloConfiguration(method=MonteCarloMethod(mc_method_label), iterations=int(mc_iterations), random_seed=int(mc_seed))
+            val_configuration = ValidationConfiguration(
+                strategy_id=base_model.metadata.id, symbol=symbol, timeframe=timeframe,
+                run_walk_forward=True, run_monte_carlo=True, walk_forward=wf_configuration, monte_carlo=mc_configuration,
+            )
+            val_engine = ValidationEngine(
+                indicator_engine=IndicatorEngine(registry=st.session_state.indicator_registry),
+                smart_money_engine=SmartMoneyEngine(registry=st.session_state.smc_registry),
+            )
             st.session_state.val_session = val_engine.try_execute(opt_session.result, base_model, base_configuration, data, val_configuration)
+        with tracked_step(tracker, 3, progress_placeholder):
+            pass
 
 if "opt_session" not in st.session_state:
     st.stop()

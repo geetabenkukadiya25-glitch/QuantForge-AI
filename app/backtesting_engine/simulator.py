@@ -19,6 +19,8 @@ Phase 9 convention, not a general strategy grammar.
 """
 
 import json
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.backtesting_engine.context import BacktestContext
@@ -55,10 +57,19 @@ class SimulationOutput:
     execution_timeline: list[ExecutionEvent] = field(default_factory=list)
 
 
+ProgressCallback = Callable[[int, int, str], None]
+
+# How often the (optional) progress callback may fire during the main
+# candle loop -- purely a UI-refresh throttle, never a factor in any
+# trading calculation. Time-based (not candle-count-based) so it stays
+# equally responsive on a 1,000-candle and a 1,000,000-candle dataset.
+_PROGRESS_CALLBACK_MIN_INTERVAL_SECONDS = 0.25
+
+
 class TradeSimulator:
     """Replays historical data through a compiled strategy, one candle at a time."""
 
-    def run(self, context: BacktestContext) -> SimulationOutput:
+    def run(self, context: BacktestContext, progress_callback: ProgressCallback | None = None) -> SimulationOutput:
         data = context.data.reset_index(drop=True)
         if data.empty:
             raise BacktestExecutionError("Cannot simulate an empty dataset.")
@@ -77,7 +88,12 @@ class TradeSimulator:
         entry_rules = [r for r in context.strategy_model.rules if r.section == "entry_rules"]
         exit_rules = [r for r in context.strategy_model.rules if r.section == "exit_rules"]
 
-        last_index = len(data) - 1
+        total_candles = len(data)
+        last_index = total_candles - 1
+        last_callback_at = time.monotonic()
+        if progress_callback is not None:
+            progress_callback(0, total_candles, "Processing Candles")
+
         for i in range(len(data)):
             row = data.loc[i]
             dt = str(row[DATETIME_COL])
@@ -113,6 +129,12 @@ class TradeSimulator:
                         timeline.append(open_event)
 
             equity_points.append(EquityPoint(index=i, datetime=dt, equity=balance + engine.positions.floating_pnl(close)))
+
+            if progress_callback is not None:
+                now = time.monotonic()
+                if i == last_index or now - last_callback_at >= _PROGRESS_CALLBACK_MIN_INTERVAL_SECONDS:
+                    progress_callback(i + 1, total_candles, "Processing Candles")
+                    last_callback_at = now
 
         final_row = data.loc[last_index]
         final_dt = str(final_row[DATETIME_COL])

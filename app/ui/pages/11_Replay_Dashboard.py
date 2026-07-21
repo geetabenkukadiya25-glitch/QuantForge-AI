@@ -22,6 +22,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
+from app.ui.progress import ProgressTracker, REPLAY_STEPS, tracked_step
 
 st.set_page_config(page_title="Replay Dashboard - QuantForge AI", page_icon="🎬", layout="wide")
 
@@ -98,14 +99,17 @@ if overlay_strategy:
                 strategy_model = build_result.model
                 st.sidebar.success(f"Built '{strategy_model.metadata.name}'")
 
-                symbol = strategy_model.context_requirement.symbols[0]
-                timeframe = strategy_model.context_requirement.timeframes[0]
-                bt_configuration = BacktestConfiguration(symbol=symbol, timeframe=timeframe, stop_loss_points=2.0, take_profit_points=4.0)
-                bt_context = BacktestContext(
-                    strategy_model=strategy_model, data=data, configuration=bt_configuration,
-                    indicator_engine=indicator_engine, smart_money_engine=smart_money_engine,
-                )
-                with st.spinner("Running the backtest to overlay trade markers..."):
+                progress_placeholder = st.sidebar.empty()
+                tracker = ProgressTracker(REPLAY_STEPS)
+                with tracked_step(tracker, 0, progress_placeholder):
+                    symbol = strategy_model.context_requirement.symbols[0]
+                    timeframe = strategy_model.context_requirement.timeframes[0]
+                    bt_configuration = BacktestConfiguration(symbol=symbol, timeframe=timeframe, stop_loss_points=2.0, take_profit_points=4.0)
+                    bt_context = BacktestContext(
+                        strategy_model=strategy_model, data=data, configuration=bt_configuration,
+                        indicator_engine=indicator_engine, smart_money_engine=smart_money_engine,
+                    )
+                with tracked_step(tracker, 1, progress_placeholder):
                     bt_session = BacktestRunner().try_execute(bt_context)
                 if bt_session.is_successful:
                     backtest_result = bt_session.result
