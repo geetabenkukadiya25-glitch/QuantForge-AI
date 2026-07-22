@@ -33,6 +33,9 @@ class Paths:
 
     sdl_dir: Path
     sdl_library_dir: Path
+    sdl_examples_dir: Path
+    sdl_library_state_dir: Path
+    sdl_autosave_dir: Path
 
     indicator_engine_dir: Path
     smart_money_engine_dir: Path
@@ -80,6 +83,9 @@ class Paths:
 
     logs_dir: Path
 
+    runtime_dir: Path
+    jobs_history_dir: Path
+
 
 @lru_cache
 def get_paths() -> Paths:
@@ -99,6 +105,9 @@ def get_paths() -> Paths:
         strategy_builder_dir=app_dir / "strategy_builder",
         sdl_dir=app_dir / "sdl",
         sdl_library_dir=app_dir / "sdl" / "library",
+        sdl_examples_dir=app_dir / "sdl" / "examples",
+        sdl_library_state_dir=app_dir / "sdl" / "library_state",
+        sdl_autosave_dir=app_dir / "strategies" / "autosave",
         indicator_engine_dir=app_dir / "indicator_engine",
         smart_money_engine_dir=app_dir / "smart_money_engine",
         chart_engine_dir=app_dir / "chart_engine",
@@ -130,6 +139,8 @@ def get_paths() -> Paths:
         database_dir=app_dir / "database",
         database_file=app_dir / "database" / settings.database_name,
         logs_dir=PROJECT_ROOT / "logs",
+        runtime_dir=app_dir / "runtime",
+        jobs_history_dir=app_dir / "runtime" / "jobs",
     )
 
     for directory in (
@@ -137,6 +148,8 @@ def get_paths() -> Paths:
         paths.downloads_dir,
         paths.generated_strategies_dir,
         paths.sdl_library_dir,
+        paths.sdl_library_state_dir,
+        paths.sdl_autosave_dir,
         paths.context_snapshots_dir,
         paths.backtest_results_dir,
         paths.optimization_results_dir,
@@ -152,6 +165,7 @@ def get_paths() -> Paths:
         paths.charts_dir,
         paths.database_dir,
         paths.logs_dir,
+        paths.jobs_history_dir,
     ):
         directory.mkdir(parents=True, exist_ok=True)
 

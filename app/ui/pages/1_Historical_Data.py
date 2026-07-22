@@ -22,6 +22,15 @@ from app.data_engine import (
     DataLoader,
     generate_quality_report,
 )
+from app.ui.components import (
+    ToolbarAction,
+    render_command_bar,
+    render_info_card,
+    render_notification_center,
+    render_shell,
+    render_status_bar,
+    render_toolbar,
+)
 from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, render_debug_banner, render_debug_panel, save_dataset
 
 st.set_page_config(page_title="Historical Data - QuantForge AI", page_icon="📈", layout="wide")
@@ -31,55 +40,39 @@ st.set_page_config(page_title="Historical Data - QuantForge AI", page_icon="📈
 # docstring for why filling it here-and-now would show stale data.
 banner_slot = st.empty()
 
-st.title("Historical Data")
+header_cols = st.columns([5, 1, 1])
+header_cols[0].title("Historical Data")
+with header_cols[1]:
+    render_notification_center()
+with header_cols[2]:
+    render_command_bar("Historical Data")
 st.caption("Load, validate, and inspect historical OHLCV data. The loaded dataset stays available to every other dashboard page.")
-render_debug_panel()
 
 loader = DataLoader()
 cleaner = DataCleaner()
 
-
-def _render(df, filename: str, stats: dict) -> None:
-    st.success(f"Loaded {len(df):,} candles from '{filename}'.")
-
-    st.subheader("Preview")
-    head_col, tail_col = st.columns(2)
-    with head_col:
-        st.caption("First rows")
-        st.dataframe(loader.preview_head(df), use_container_width=True)
-    with tail_col:
-        st.caption("Last rows")
-        st.dataframe(loader.preview_tail(df), use_container_width=True)
-
-    st.subheader("Statistics")
-    cols = st.columns(4)
-    cols[0].metric("Candles", f"{stats['num_candles']:,}")
-    cols[1].metric("Detected timeframe", stats["detected_timeframe"] or "—")
-    cols[2].metric("Missing candles", f"{stats['missing_candles']:,}")
-    cols[3].metric("Duplicate candles", f"{stats['duplicate_candles']:,}")
-    st.write(
-        f"Date range: **{stats['date_range_start']}** → **{stats['date_range_end']}**  \n"
-        f"Memory usage: **{stats['memory_usage_bytes'] / 1024:.1f} KB**"
-    )
-
-    st.subheader("Data Quality Report")
-    report = generate_quality_report(df)
-    report_dict = {key: str(value) for key, value in report.to_dict().items()}
-    st.json(report_dict, expanded=False)
-
-
 if "uploader_reset_token" not in st.session_state:
     st.session_state.uploader_reset_token = 0
 
-# Keyed off a token that "Clear dataset" bumps below -- otherwise clearing
-# the persisted dataset while the file_uploader widget still holds its
-# previous file would just re-persist that same file on the very next
-# rerun, silently undoing the clear.
-uploaded_file = st.file_uploader(
-    "Upload a CSV file (standard or MT5 export format)", type=["csv"], key=f"historical_data_uploader_{st.session_state.uploader_reset_token}"
-)
-clean_on_load = st.checkbox("Clean on load (sort, de-duplicate, drop unparseable rows)", value=True)
-symbol_label = st.text_input("Symbol (optional, for reference only)", value="")
+explorer_col, workspace_col, info_col = render_shell()
+
+# -----------------------------------------------------------------------
+# Explorer (left) -- the page's existing input widgets, unchanged (same
+# variables, keys, order), just relocated out of the old top-of-body flow.
+# -----------------------------------------------------------------------
+
+with explorer_col:
+    st.subheader("Explorer")
+    # Keyed off a token that "Clear dataset" bumps below -- otherwise
+    # clearing the persisted dataset while the file_uploader widget still
+    # holds its previous file would just re-persist that same file on the
+    # very next rerun, silently undoing the clear.
+    uploaded_file = st.file_uploader(
+        "Upload a CSV file (standard or MT5 export format)", type=["csv"], key=f"historical_data_uploader_{st.session_state.uploader_reset_token}"
+    )
+    clean_on_load = st.checkbox("Clean on load (sort, de-duplicate, drop unparseable rows)", value=True)
+    symbol_label = st.text_input("Symbol (optional, for reference only)", value="")
+    render_debug_panel()
 
 df, filename, stats = None, None, None
 
@@ -105,19 +98,106 @@ elif has_dataset():
     metadata = load_metadata()
     filename = metadata.filename
     stats = loader.statistics(df)
-    st.info(f"Showing the previously loaded dataset ('{metadata.filename}'). Upload a new file above to replace it, or use 'Clear dataset' to remove it.")
+
+# -----------------------------------------------------------------------
+# Workspace (center) -- toolbar + tabs replacing the old linear section
+# stack (Preview / Statistics / Quality Report). Every value rendered
+# below is the exact same `df`/`filename`/`stats`/`report` this page
+# already computed above.
+# -----------------------------------------------------------------------
+
+with workspace_col:
+    toolbar_clicked = render_toolbar(
+        [
+            ToolbarAction("🔄 Refresh", "refresh"),
+            ToolbarAction("🗑 Clear", "clear", enabled=has_dataset(), disabled_reason=None if has_dataset() else "No dataset loaded."),
+            ToolbarAction("💾 Export", "export", enabled=False, disabled_reason="Export is not implemented for Historical Data in this phase."),
+        ]
+    )
+    if toolbar_clicked.get("refresh"):
+        st.rerun()
+    if toolbar_clicked.get("clear") and has_dataset():
+        clear_dataset()
+        st.session_state.uploader_reset_token += 1
+        st.rerun()
+
+    if df is None:
+        st.info("Upload a CSV file to get started.")
+    else:
+        if uploaded_file is not None:
+            st.success(f"Loaded {len(df):,} candles from '{filename}'.")
+        else:
+            st.info(f"Showing the previously loaded dataset ('{filename}'). Upload a new file in the Explorer to replace it, or use 'Clear' to remove it.")
+
+        overview_tab, preview_tab, stats_tab, quality_tab = st.tabs(["Overview", "Preview", "Statistics", "Quality Report"])
+
+        with overview_tab:
+            cols = st.columns(4)
+            cols[0].metric("Candles", f"{stats['num_candles']:,}")
+            cols[1].metric("Detected timeframe", stats["detected_timeframe"] or "—")
+            cols[2].metric("Missing candles", f"{stats['missing_candles']:,}")
+            cols[3].metric("Duplicate candles", f"{stats['duplicate_candles']:,}")
+            st.write(
+                f"Date range: **{stats['date_range_start']}** → **{stats['date_range_end']}**  \n"
+                f"Memory usage: **{stats['memory_usage_bytes'] / 1024:.1f} KB**"
+            )
+
+        with preview_tab:
+            head_col, tail_col = st.columns(2)
+            with head_col:
+                st.caption("First rows")
+                st.dataframe(loader.preview_head(df), use_container_width=True)
+            with tail_col:
+                st.caption("Last rows")
+                st.dataframe(loader.preview_tail(df), use_container_width=True)
+
+        with stats_tab:
+            cols = st.columns(4)
+            cols[0].metric("Candles", f"{stats['num_candles']:,}")
+            cols[1].metric("Detected timeframe", stats["detected_timeframe"] or "—")
+            cols[2].metric("Missing candles", f"{stats['missing_candles']:,}")
+            cols[3].metric("Duplicate candles", f"{stats['duplicate_candles']:,}")
+
+        with quality_tab:
+            report = generate_quality_report(df)
+            report_dict = {key: str(value) for key, value in report.to_dict().items()}
+            st.json(report_dict, expanded=False)
+
+# -----------------------------------------------------------------------
+# Information (right) -- dataset metadata card, sourced from the same
+# `stats`/`filename` this page already computed.
+# -----------------------------------------------------------------------
+
+with info_col:
+    st.subheader("Dataset Information")
+    if df is None:
+        st.caption("Nothing loaded yet.")
+    else:
+        render_info_card(
+            "Dataset",
+            [
+                ("Filename", filename),
+                ("Candles", f"{stats['num_candles']:,}"),
+                ("Timeframe", stats["detected_timeframe"] or "—"),
+                ("Symbol", symbol_label or "—"),
+            ],
+        )
+        render_info_card(
+            "Quality",
+            [
+                ("Missing candles", f"{stats['missing_candles']:,}"),
+                ("Duplicate candles", f"{stats['duplicate_candles']:,}"),
+            ],
+        )
 
 # Checked AFTER upload processing so a file uploaded during this very run
-# (which persists immediately, above) makes the button appear right away,
-# not only after a subsequent rerun.
-if has_dataset() and st.button("Clear dataset"):
-    clear_dataset()
-    st.session_state.uploader_reset_token += 1
-    st.rerun()
-
+# (which persists immediately, above) reflects right away, not only after
+# a subsequent rerun.
 render_debug_banner(banner_slot)
 
-if df is not None:
-    _render(df, filename, stats)
-else:
-    st.info("Upload a CSV file to get started.")
+render_status_bar(
+    module="Historical Data",
+    strategy_status="—",
+    validation_status="—",
+    execution_status="Loaded" if df is not None else "Ready",
+)

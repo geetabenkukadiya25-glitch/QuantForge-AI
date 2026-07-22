@@ -84,6 +84,12 @@ app/ai_assistant/results/*
 !app/ai_assistant/results/.gitkeep
 app/ea_generator/results/*
 !app/ea_generator/results/.gitkeep
+app/sdl/library_state/*
+!app/sdl/library_state/.gitkeep
+app/strategies/autosave/*
+!app/strategies/autosave/.gitkeep
+app/runtime/jobs/*
+!app/runtime/jobs/.gitkeep
 
 # --- OS ------------------------------------------------------------------------
 .DS_Store

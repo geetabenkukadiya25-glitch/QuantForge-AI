@@ -8,6 +8,22 @@ patterns, candlesticks, risk management, psychology, sessions, market
 structure, and more). This page (and the module behind it) never
 executes a trade, never optimizes, never backtests, never validates,
 never replays, and never connects to a broker or MT5.
+
+Phase 18.2/18.3 restyle: the same flow now lives inside the shared
+3-column Explorer / Workspace / Information shell (`app.ui.components`)
+instead of `st.sidebar` + a linear body, with a global toolbar and a
+bottom status bar. Its existing results tabs (Browse & Search / Category
+Report / Statistics / Learning Progress / Export) are unchanged. No
+`KnowledgeBaseEngine` call changed -- every `st.sidebar.X(...)` became
+`st.X(...)` inside a `with explorer_col:` block.
+
+Phase 18.4: the build (`engine.try_execute(...)`) used to run
+automatically on every script rerun whenever entries existed. It's now
+an explicit "Run" toolbar action submitted through the Job Manager
+("Knowledge Index" job category), matching every other dashboard's
+Run-driven Job pattern -- entry management (Load Starter/Add/Clear)
+stays instant/synchronous since it's plain list mutation, not a heavy
+operation.
 """
 
 import pandas as pd
@@ -25,11 +41,20 @@ from app.knowledge_base import (
     KnowledgeSearchQuery,
     KnowledgeSerializer,
 )
+from app.job_manager import JobCategory, JobState, get_job_manager
 from app.smart_money_engine import SMCRegistry
+from app.ui.components import ToolbarAction, notify, render_command_bar, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
+
+KNOWLEDGE_INDEX_STEPS = ["Indexing Knowledge Base"]
 
 st.set_page_config(page_title="Knowledge Base - QuantForge AI", page_icon="📚", layout="wide")
 
-st.title("Knowledge Base")
+header_cols = st.columns([5, 1, 1])
+header_cols[0].title("Knowledge Base")
+with header_cols[1]:
+    render_notification_center()
+with header_cols[2]:
+    render_command_bar("Knowledge Base")
 st.caption(
     "Institutional trading-knowledge documentation: SMC, ICT, price action, indicators, patterns, risk "
     "management, psychology, and more. This module is NOT AI, NOT Strategy Builder, NOT the Research Engine. "
@@ -49,6 +74,7 @@ if "kb_completed" not in st.session_state:
 
 indicator_registry: IndicatorRegistry = st.session_state.indicator_registry
 smc_registry: SMCRegistry = st.session_state.smc_registry
+job_manager = get_job_manager()
 
 
 def _starter_entries() -> list[KnowledgeEntry]:
@@ -105,130 +131,209 @@ def _starter_entries() -> list[KnowledgeEntry]:
     ]
 
 
-st.sidebar.header("1. Build the Knowledge Base")
-if st.sidebar.button("Load Starter Entries"):
-    existing_ids = {e.entry_id for e in st.session_state.kb_entries}
-    st.session_state.kb_entries += [e for e in _starter_entries() if e.entry_id not in existing_ids]
+explorer_col, workspace_col, info_col = render_shell()
 
-with st.sidebar.form("add_entry_form"):
-    st.subheader("Add an Entry")
-    entry_id = st.text_input("Entry id (unique)")
-    title = st.text_input("Title")
-    category = st.selectbox("Category", [c.value for c in KnowledgeCategory])
-    difficulty = st.selectbox("Difficulty", [d.value for d in DifficultyLevel])
-    summary = st.text_area("Summary", height=60)
-    content = st.text_area("Content", height=120)
-    tags = st.text_input("Tags (comma-separated)")
-    asset_classes = st.text_input("Asset classes (comma-separated, blank = all)")
-    timeframes = st.text_input("Timeframes (comma-separated, blank = all)")
-    sessions = st.text_input("Sessions (comma-separated, blank = all)")
-    related_entry_ids = st.text_input("Related entry ids (comma-separated)")
-    submitted = st.form_submit_button("Add Entry")
+with explorer_col:
+    st.subheader("Explorer")
+    st.header("1. Build the Knowledge Base")
+    if st.button("Load Starter Entries"):
+        existing_ids = {e.entry_id for e in st.session_state.kb_entries}
+        st.session_state.kb_entries += [e for e in _starter_entries() if e.entry_id not in existing_ids]
 
-    if submitted:
-        if not entry_id or not title or not summary or not content:
-            st.sidebar.error("Entry id, title, summary, and content are required.")
-        else:
-            def _split(text: str) -> tuple[str, ...]:
-                return tuple(p.strip() for p in text.split(",") if p.strip())
+    with st.form("add_entry_form"):
+        st.subheader("Add an Entry")
+        entry_id = st.text_input("Entry id (unique)")
+        title = st.text_input("Title")
+        category = st.selectbox("Category", [c.value for c in KnowledgeCategory])
+        difficulty = st.selectbox("Difficulty", [d.value for d in DifficultyLevel])
+        summary = st.text_area("Summary", height=60)
+        content = st.text_area("Content", height=120)
+        tags = st.text_input("Tags (comma-separated)")
+        asset_classes = st.text_input("Asset classes (comma-separated, blank = all)")
+        timeframes = st.text_input("Timeframes (comma-separated, blank = all)")
+        sessions = st.text_input("Sessions (comma-separated, blank = all)")
+        related_entry_ids = st.text_input("Related entry ids (comma-separated)")
+        submitted = st.form_submit_button("Add Entry")
 
-            st.session_state.kb_entries.append(
-                KnowledgeEntry(
-                    entry_id=entry_id, title=title, category=KnowledgeCategory(category), difficulty=DifficultyLevel(difficulty),
-                    summary=summary, content=content, tags=_split(tags), asset_classes=_split(asset_classes),
-                    timeframes=_split(timeframes), sessions=_split(sessions), related_entry_ids=_split(related_entry_ids),
+        if submitted:
+            if not entry_id or not title or not summary or not content:
+                st.error("Entry id, title, summary, and content are required.")
+            else:
+                def _split(text: str) -> tuple[str, ...]:
+                    return tuple(p.strip() for p in text.split(",") if p.strip())
+
+                st.session_state.kb_entries.append(
+                    KnowledgeEntry(
+                        entry_id=entry_id, title=title, category=KnowledgeCategory(category), difficulty=DifficultyLevel(difficulty),
+                        summary=summary, content=content, tags=_split(tags), asset_classes=_split(asset_classes),
+                        timeframes=_split(timeframes), sessions=_split(sessions), related_entry_ids=_split(related_entry_ids),
+                    )
                 )
-            )
-            st.sidebar.success(f"Added '{title}'.")
+                st.success(f"Added '{title}'.")
 
-if st.sidebar.button("Clear All Entries"):
-    st.session_state.kb_entries = []
-    st.session_state.kb_completed = set()
+    if st.button("Clear All Entries"):
+        st.session_state.kb_entries = []
+        st.session_state.kb_completed = set()
 
-if not st.session_state.kb_entries:
-    st.info("Load the starter entries or add your own in the sidebar to build a knowledge base.")
-    st.stop()
-
-engine = KnowledgeBaseEngine()
-configuration = KnowledgeConfiguration()
-session = engine.try_execute(tuple(st.session_state.kb_entries), configuration, indicator_registry=indicator_registry, smc_registry=smc_registry)
-
-st.subheader("Knowledge Base Build")
-if not session.is_successful:
-    st.error("Failed validation:")
-    st.code(session.validation.report())
-    st.stop()
-
-result = session.result
-report = KnowledgeReport(result)
-
-cols = st.columns(4)
-cols[0].metric("Total entries", result.statistics.total_entries)
-cols[1].metric("Categories covered", result.statistics.total_categories)
-cols[2].metric("Cross-references", result.statistics.total_cross_references)
-cols[3].metric("Avg content length", f"{result.statistics.average_content_length:.0f}")
-st.caption(f"Checksum: {result.checksum}")
-
-tabs = st.tabs(["Browse & Search", "Category Report", "Statistics", "Learning Progress", "Export"])
-
-with tabs[0]:
-    search_cols = st.columns(4)
-    keyword = search_cols[0].text_input("Keyword")
-    category_filter = search_cols[1].selectbox("Category", ["(any)"] + [c.value for c in KnowledgeCategory])
-    difficulty_filter = search_cols[2].selectbox("Difficulty", ["(any)"] + [d.value for d in DifficultyLevel])
-    tag_filter = search_cols[3].text_input("Tag")
-
-    query = KnowledgeSearchQuery(
-        keyword=keyword or None,
-        category=KnowledgeCategory(category_filter) if category_filter != "(any)" else None,
-        difficulty=DifficultyLevel(difficulty_filter) if difficulty_filter != "(any)" else None,
-        tag=tag_filter or None,
+with workspace_col:
+    _toolbar_job = job_manager.get(st.session_state.get("kb_current_job_id"))
+    job_active = _toolbar_job is not None and _toolbar_job.state in (JobState.QUEUED, JobState.RUNNING)
+    run_enabled = bool(st.session_state.kb_entries) and not job_active
+    run_disabled_reason = None
+    if job_active:
+        run_disabled_reason = "A job is already running."
+    elif not st.session_state.kb_entries:
+        run_disabled_reason = "Load or add at least one entry first."
+    toolbar_clicked = render_toolbar(
+        [
+            ToolbarAction("▶ Run", "run", type="primary", enabled=run_enabled, disabled_reason=run_disabled_reason),
+            ToolbarAction("⏹ Stop", "stop", enabled=job_active, disabled_reason=None if job_active else "No job is currently running."),
+            ToolbarAction("✓ Validate", "validate", enabled=False, disabled_reason="Validation runs automatically on every build."),
+            ToolbarAction("🔄 Refresh", "refresh"),
+        ]
     )
-    matches = KnowledgeSearchEngine().search(result.entries, query)
-    st.dataframe(
-        pd.DataFrame([{"entry_id": e.entry_id, "title": e.title, "category": e.category.value, "difficulty": e.difficulty.value} for e in matches]),
-        use_container_width=True, hide_index=True,
+    if toolbar_clicked.get("refresh"):
+        st.rerun()
+    if toolbar_clicked.get("stop") and _toolbar_job is not None:
+        job_manager.cancel(_toolbar_job.id)
+        notify("warning", f"Cancel requested: {_toolbar_job.name}")
+        st.rerun()
+
+    if not st.session_state.kb_entries:
+        st.info("Load the starter entries or add your own in the Explorer to build a knowledge base.")
+        render_status_bar(module="Knowledge Base", execution_status="Empty", **job_manager.status_counts())
+        st.stop()
+
+    if toolbar_clicked.get("run"):
+        def _run_knowledge_index(job, entries=tuple(st.session_state.kb_entries), indicator_registry=indicator_registry, smc_registry=smc_registry):
+            with job.progress.step(0):
+                engine = KnowledgeBaseEngine()
+                configuration = KnowledgeConfiguration()
+                return engine.try_execute(entries, configuration, indicator_registry=indicator_registry, smc_registry=smc_registry)
+
+        job = job_manager.submit(
+            name=f"Knowledge Index: {len(st.session_state.kb_entries)} entries",
+            category=JobCategory.KNOWLEDGE_INDEX,
+            operation=_run_knowledge_index,
+            owner_page="Knowledge Base",
+            step_names=KNOWLEDGE_INDEX_STEPS,
+        )
+        notify("info", f"Queued: {job.name}")
+        st.session_state.kb_current_job_id = job.id
+        st.rerun()
+
+    current_job_id = st.session_state.get("kb_current_job_id")
+    current_job = job_manager.get(current_job_id) if current_job_id else None
+
+    if current_job is None or current_job.state != JobState.COMPLETED:
+        with info_col:
+            render_runtime_monitor(current_job_id, strategy_label=f"{len(st.session_state.kb_entries)} entries")
+        if current_job is not None and current_job.state == JobState.FAILED:
+            st.error(f"Knowledge index build failed: {current_job.error}")
+        elif current_job is None:
+            st.info("Click 'Run' in the toolbar to build the knowledge base index.")
+        render_status_bar(module="Knowledge Base", execution_status=current_job.state.value if current_job else "Ready", job=current_job, **job_manager.status_counts())
+        st.stop()
+
+    session = current_job.result
+    st.subheader("Knowledge Base Build")
+    if not session.is_successful:
+        st.error("Failed validation:")
+        st.code(session.validation.report())
+        render_status_bar(module="Knowledge Base", validation_status="Invalid", execution_status="Failed", **job_manager.status_counts())
+        st.stop()
+
+    result = session.result
+    report = KnowledgeReport(result)
+
+    cols = st.columns(4)
+    cols[0].metric("Total entries", result.statistics.total_entries)
+    cols[1].metric("Categories covered", result.statistics.total_categories)
+    cols[2].metric("Cross-references", result.statistics.total_cross_references)
+    cols[3].metric("Avg content length", f"{result.statistics.average_content_length:.0f}")
+    st.caption(f"Checksum: {result.checksum}")
+
+    tabs = st.tabs(["Browse & Search", "Category Report", "Statistics", "Learning Progress", "Export"])
+
+    with tabs[0]:
+        search_cols = st.columns(4)
+        keyword = search_cols[0].text_input("Keyword")
+        category_filter = search_cols[1].selectbox("Category", ["(any)"] + [c.value for c in KnowledgeCategory])
+        difficulty_filter = search_cols[2].selectbox("Difficulty", ["(any)"] + [d.value for d in DifficultyLevel])
+        tag_filter = search_cols[3].text_input("Tag")
+
+        query = KnowledgeSearchQuery(
+            keyword=keyword or None,
+            category=KnowledgeCategory(category_filter) if category_filter != "(any)" else None,
+            difficulty=DifficultyLevel(difficulty_filter) if difficulty_filter != "(any)" else None,
+            tag=tag_filter or None,
+        )
+        matches = KnowledgeSearchEngine().search(result.entries, query)
+        st.dataframe(
+            pd.DataFrame([{"entry_id": e.entry_id, "title": e.title, "category": e.category.value, "difficulty": e.difficulty.value} for e in matches]),
+            use_container_width=True, hide_index=True,
+        )
+
+        if matches:
+            selected_id = st.selectbox("View topic", [e.entry_id for e in matches])
+            topic = report.topic_report(selected_id)
+            if topic is not None:
+                st.markdown(f"### {topic.entry.title}")
+                st.caption(f"{topic.entry.category.value} | {topic.entry.difficulty.value}")
+                st.write(topic.entry.summary)
+                st.write(topic.entry.content)
+                if topic.entry.tags:
+                    st.caption(f"Tags: {', '.join(topic.entry.tags)}")
+                if topic.related_entries:
+                    st.markdown("**Related:** " + ", ".join(e.title for e in topic.related_entries))
+                st.checkbox("Mark as completed", value=selected_id in st.session_state.kb_completed, key=f"complete_{selected_id}", on_change=lambda eid=selected_id: (
+                    st.session_state.kb_completed.add(eid) if st.session_state.get(f"complete_{eid}") else st.session_state.kb_completed.discard(eid)
+                ))
+
+    with tabs[1]:
+        category_choice = st.selectbox("Category", [c.value for c in KnowledgeCategory], key="category_report_choice")
+        category_report = report.category_report(KnowledgeCategory(category_choice))
+        st.metric("Entries in category", category_report.entry_count)
+        st.dataframe(pd.DataFrame([d.model_dump() for d in category_report.difficulty_breakdown]), use_container_width=True, hide_index=True)
+        st.write(list(category_report.entry_ids))
+
+    with tabs[2]:
+        st.markdown("**By Category**")
+        st.dataframe(pd.DataFrame([c.model_dump() for c in result.statistics.entries_by_category]), use_container_width=True, hide_index=True)
+        st.markdown("**By Difficulty**")
+        st.dataframe(pd.DataFrame([d.model_dump() for d in result.statistics.entries_by_difficulty]), use_container_width=True, hide_index=True)
+        st.markdown("**Top Tags**")
+        st.dataframe(pd.DataFrame([t.model_dump() for t in result.statistics.top_tags]), use_container_width=True, hide_index=True)
+
+    with tabs[3]:
+        progress = report.learning_progress_report(frozenset(st.session_state.kb_completed))
+        st.metric("Completion", f"{progress.completion_pct:.1f}%")
+        st.progress(min(1.0, progress.completion_pct / 100.0))
+        st.write(f"{progress.completed_entries} of {progress.total_entries} entries completed.")
+        st.dataframe(pd.DataFrame([c.model_dump() for c in progress.completed_by_category]), use_container_width=True, hide_index=True)
+        if progress.remaining_entry_ids:
+            st.caption("Remaining: " + ", ".join(progress.remaining_entry_ids))
+
+    with tabs[4]:
+        export_json = KnowledgeSerializer().to_json(result)
+        st.code(export_json, language="json")
+        st.download_button("Download raw result (JSON)", data=export_json, file_name="knowledge_base_result.json", mime="application/json")
+
+with info_col:
+    st.subheader("Information")
+    render_info_card(
+        "Knowledge Base",
+        [
+            ("Total entries", result.statistics.total_entries),
+            ("Categories covered", result.statistics.total_categories),
+            ("Cross-references", result.statistics.total_cross_references),
+        ],
     )
+    render_runtime_monitor(current_job.id, strategy_label=f"{len(st.session_state.kb_entries)} entries")
 
-    if matches:
-        selected_id = st.selectbox("View topic", [e.entry_id for e in matches])
-        topic = report.topic_report(selected_id)
-        if topic is not None:
-            st.markdown(f"### {topic.entry.title}")
-            st.caption(f"{topic.entry.category.value} | {topic.entry.difficulty.value}")
-            st.write(topic.entry.summary)
-            st.write(topic.entry.content)
-            if topic.entry.tags:
-                st.caption(f"Tags: {', '.join(topic.entry.tags)}")
-            if topic.related_entries:
-                st.markdown("**Related:** " + ", ".join(e.title for e in topic.related_entries))
-            st.checkbox("Mark as completed", value=selected_id in st.session_state.kb_completed, key=f"complete_{selected_id}", on_change=lambda eid=selected_id: (
-                st.session_state.kb_completed.add(eid) if st.session_state.get(f"complete_{eid}") else st.session_state.kb_completed.discard(eid)
-            ))
-
-with tabs[1]:
-    category_choice = st.selectbox("Category", [c.value for c in KnowledgeCategory], key="category_report_choice")
-    category_report = report.category_report(KnowledgeCategory(category_choice))
-    st.metric("Entries in category", category_report.entry_count)
-    st.dataframe(pd.DataFrame([d.model_dump() for d in category_report.difficulty_breakdown]), use_container_width=True, hide_index=True)
-    st.write(list(category_report.entry_ids))
-
-with tabs[2]:
-    st.markdown("**By Category**")
-    st.dataframe(pd.DataFrame([c.model_dump() for c in result.statistics.entries_by_category]), use_container_width=True, hide_index=True)
-    st.markdown("**By Difficulty**")
-    st.dataframe(pd.DataFrame([d.model_dump() for d in result.statistics.entries_by_difficulty]), use_container_width=True, hide_index=True)
-    st.markdown("**Top Tags**")
-    st.dataframe(pd.DataFrame([t.model_dump() for t in result.statistics.top_tags]), use_container_width=True, hide_index=True)
-
-with tabs[3]:
-    progress = report.learning_progress_report(frozenset(st.session_state.kb_completed))
-    st.metric("Completion", f"{progress.completion_pct:.1f}%")
-    st.progress(min(1.0, progress.completion_pct / 100.0))
-    st.write(f"{progress.completed_entries} of {progress.total_entries} entries completed.")
-    st.dataframe(pd.DataFrame([c.model_dump() for c in progress.completed_by_category]), use_container_width=True, hide_index=True)
-    if progress.remaining_entry_ids:
-        st.caption("Remaining: " + ", ".join(progress.remaining_entry_ids))
-
-with tabs[4]:
-    st.code(KnowledgeSerializer().to_json(result), language="json")
+render_status_bar(
+    module="Knowledge Base",
+    validation_status="Valid" if session.is_successful else "Invalid",
+    execution_status="Completed",
+    **job_manager.status_counts(),
+)

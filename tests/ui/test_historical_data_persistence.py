@@ -71,7 +71,7 @@ def test_clear_dataset_button_removes_the_persisted_dataset(sample_csv_bytes) ->
     _upload(at, sample_csv_bytes)
     assert at.session_state.filtered_state.get(DATASET_KEY) is not None
 
-    clear_buttons = [b for b in at.button if b.label == "Clear dataset"]
+    clear_buttons = [b for b in at.button if b.label == "🗑 Clear"]
     assert len(clear_buttons) == 1
     clear_buttons[0].click().run()
 
@@ -84,7 +84,7 @@ def test_backtesting_dashboard_requires_upload_when_nothing_persisted() -> None:
     at = AppTest.from_file(BACKTESTING_DASHBOARD_PAGE, default_timeout=60)
     at.run()
     assert at.exception == []
-    assert any("Upload historical OHLCV data in the sidebar to run a backtest." in m.value for m in at.info)
+    assert any("Upload historical OHLCV data in the Explorer to run a backtest." in m.value for m in at.info)
 
 
 def test_backtesting_dashboard_automatically_uses_the_persisted_dataset(sample_csv_bytes) -> None:
@@ -96,14 +96,18 @@ def test_backtesting_dashboard_automatically_uses_the_persisted_dataset(sample_c
     at2.run()
 
     assert at2.exception == []
-    assert not any("Upload historical OHLCV data in the sidebar to run a backtest." in m.value for m in at2.info)
-    assert any("Using persisted dataset" in m.value for m in at2.sidebar.success)
-    # The "Run Backtest" button must be present and clickable -- proving
+    assert not any("Upload historical OHLCV data in the Explorer to run a backtest." in m.value for m in at2.info)
+    assert any("Using persisted dataset" in m.value for m in at2.success)
+    # The "▶ Run" toolbar button must be present and clickable -- proving
     # the page reached the point where `data` is populated.
-    assert any(b.label == "Run Backtest" for b in at2.sidebar.button)
+    assert any(b.label == "▶ Run" for b in at2.button)
 
 
 def test_backtesting_dashboard_run_backtest_uses_the_persisted_dataset(sample_csv_bytes) -> None:
+    import time
+
+    from app.job_manager import JobState, get_job_manager
+
     at1 = AppTest.from_file(HISTORICAL_DATA_PAGE, default_timeout=60)
     _upload(at1, sample_csv_bytes)
 
@@ -111,12 +115,23 @@ def test_backtesting_dashboard_run_backtest_uses_the_persisted_dataset(sample_cs
     _carry_session_state(at1, at2)
     at2.run()
 
-    run_button = next(b for b in at2.sidebar.button if b.label == "Run Backtest")
+    run_button = next(b for b in at2.button if b.label == "▶ Run")
     run_button.click().run()
-
     assert at2.exception == []
-    assert "backtest_session" in at2.session_state.filtered_state
-    session = at2.session_state.filtered_state["backtest_session"]
+
+    # "Run" submits a Job Manager job (Phase 18.4) instead of running the
+    # backtest inline -- wait for the background dispatcher thread to
+    # finish it, then rerun so the page picks up the completed job.
+    job_id = at2.session_state.filtered_state["bt_current_job_id"]
+    job_manager = get_job_manager()
+    deadline = time.time() + 10
+    while job_manager.get(job_id).state not in (JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED) and time.time() < deadline:
+        time.sleep(0.02)
+    assert job_manager.get(job_id).state == JobState.COMPLETED
+
+    at2.run()
+    assert at2.exception == []
+    session = job_manager.get(job_id).result
     assert session.context.data is at1.session_state.filtered_state[DATASET_KEY] or len(session.context.data) == 9
 
 
@@ -128,13 +143,13 @@ def test_backtesting_dashboard_clear_dataset_button_removes_persisted_dataset(sa
     _carry_session_state(at1, at2)
     at2.run()
 
-    clear_buttons = [b for b in at2.sidebar.button if b.label == "Clear dataset"]
+    clear_buttons = [b for b in at2.button if b.label == "Clear dataset"]
     assert len(clear_buttons) == 1
     clear_buttons[0].click().run()
 
     assert at2.exception == []
     assert DATASET_KEY not in at2.session_state.filtered_state
-    assert any("Upload historical OHLCV data in the sidebar to run a backtest." in m.value for m in at2.info)
+    assert any("Upload historical OHLCV data in the Explorer to run a backtest." in m.value for m in at2.info)
 
 
 def test_uploading_directly_on_backtesting_dashboard_also_persists_for_other_pages(sample_csv_bytes) -> None:
@@ -144,7 +159,7 @@ def test_uploading_directly_on_backtesting_dashboard_also_persists_for_other_pag
     also sees it."""
     at1 = AppTest.from_file(BACKTESTING_DASHBOARD_PAGE, default_timeout=60)
     at1.run()
-    at1.sidebar.file_uploader[0].set_value(("gbpusd.csv", sample_csv_bytes, "text/csv"))
+    at1.file_uploader[0].set_value(("gbpusd.csv", sample_csv_bytes, "text/csv"))
     at1.run()
 
     assert at1.exception == []
