@@ -12,7 +12,6 @@ from app.core.exceptions import NotImplementedYetError
 from app.data.data_downloader import DataDownloader
 from app.data.data_loader import DataLoader
 from app.mt5.ea_generator.ea_generator import EAGenerator
-from app.mt5.mt5_connector import MT5Connector
 from app.optimization.optimizer import OptimizationEngine
 from app.strategies.strategy_builder import StrategyBuilder
 
@@ -30,7 +29,6 @@ from app.strategies.strategy_builder import StrategyBuilder
         lambda: IndicatorEngine().compute(None, "sma"),
         lambda: TranscriptReader().read("https://youtube.com/watch?v=x"),
         lambda: AIStrategyExtractor().extract("text"),
-        lambda: MT5Connector().connect(),
         lambda: EAGenerator().generate(None),
     ],
 )

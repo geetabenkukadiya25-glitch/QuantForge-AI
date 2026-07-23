@@ -104,6 +104,10 @@ app/governance/state/*
 !app/governance/state/.gitkeep
 app/settings_center/state/*
 !app/settings_center/state/.gitkeep
+app/cloud_sync/state/*
+!app/cloud_sync/state/.gitkeep
+app/mt5/state/*
+!app/mt5/state/.gitkeep
 
 # --- OS ------------------------------------------------------------------------
 .DS_Store

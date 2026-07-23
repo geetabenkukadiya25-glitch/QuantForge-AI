@@ -17,6 +17,8 @@ _ACTIONS: list[tuple[str, str]] = [
     ("Open Risk Analytics", "pages/22_Risk_Analytics.py"),
     ("Open Governance", "pages/23_Governance.py"),
     ("Open Settings Center", "pages/24_Settings_Center.py"),
+    ("Open Cloud Sync", "pages/25_Cloud_Sync.py"),
+    ("Open MT5 Integration", "pages/26_MT5_Integration.py"),
     ("Open Strategy", "pages/3_Strategy_Library.py"),
     ("Open Dataset", "pages/1_Historical_Data.py"),
     ("Chart Engine", "pages/2_Chart_Engine.py"),
@@ -164,3 +166,27 @@ def render_command_bar(current_page: str) -> None:
             st.caption("Recent Governance Records")
             for record in recent_governance[:5]:
                 st.caption(f"{record.object_label or record.object_id} ({record.status.value})")
+
+        try:
+            from app.cloud_sync import get_sync_manager
+
+            recent_sync_ops = get_sync_manager().list_operations()
+        except Exception:  # noqa: BLE001 -- command bar must never crash a page over an optional recents list
+            recent_sync_ops = []
+        if recent_sync_ops:
+            st.divider()
+            st.caption("Recent Cloud Sync Operations")
+            for operation in recent_sync_ops[:5]:
+                st.caption(f"{operation.object_label or operation.object_id} ({operation.status.value})")
+
+        try:
+            from app.mt5 import get_mt5_manager
+
+            recent_mt5_events = get_mt5_manager().list_audit_events()
+        except Exception:  # noqa: BLE001 -- command bar must never crash a page over an optional recents list
+            recent_mt5_events = []
+        if recent_mt5_events:
+            st.divider()
+            st.caption("Recent MT5 Connection Events")
+            for event in recent_mt5_events[:5]:
+                st.caption(f"{event.event_type.value} ({event.key})")

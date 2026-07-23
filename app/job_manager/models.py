@@ -22,6 +22,7 @@ class JobCategory(str, Enum):
     EA_GENERATION = "EA_GENERATION"
     AI_ANALYSIS = "AI_ANALYSIS"
     KNOWLEDGE_INDEX = "KNOWLEDGE_INDEX"
+    MT5_SYNC = "MT5_SYNC"
     OTHER = "OTHER"
 
 
