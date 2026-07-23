@@ -108,6 +108,8 @@ app/cloud_sync/state/*
 !app/cloud_sync/state/.gitkeep
 app/mt5/state/*
 !app/mt5/state/.gitkeep
+app/mt5_sync/state/*
+!app/mt5_sync/state/.gitkeep
 
 # --- OS ------------------------------------------------------------------------
 .DS_Store

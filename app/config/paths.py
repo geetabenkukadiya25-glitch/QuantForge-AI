@@ -111,6 +111,9 @@ class Paths:
     mt5_dir: Path
     mt5_state_dir: Path
 
+    mt5_sync_dir: Path
+    mt5_sync_state_dir: Path
+
 
 @lru_cache
 def get_paths() -> Paths:
@@ -183,6 +186,8 @@ def get_paths() -> Paths:
         cloud_sync_state_dir=app_dir / "cloud_sync" / "state",
         mt5_dir=app_dir / "mt5",
         mt5_state_dir=app_dir / "mt5" / "state",
+        mt5_sync_dir=app_dir / "mt5_sync",
+        mt5_sync_state_dir=app_dir / "mt5_sync" / "state",
     )
 
     for directory in (
@@ -217,6 +222,7 @@ def get_paths() -> Paths:
         paths.settings_center_state_dir,
         paths.cloud_sync_state_dir,
         paths.mt5_state_dir,
+        paths.mt5_sync_state_dir,
     ):
         directory.mkdir(parents=True, exist_ok=True)
 
