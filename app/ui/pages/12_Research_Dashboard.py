@@ -18,14 +18,12 @@ inside a `with explorer_col:` block, and "Run Research" moved into the
 toolbar as "Run".
 """
 
-import tempfile
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
 from app.backtesting_engine import BacktestConfiguration, BacktestContext, BacktestRunner
-from app.data_engine import CSVFormatError, DataLoader
 from app.indicator_engine import IndicatorEngine, IndicatorRegistry
 from app.job_manager import JobCategory, JobState, get_job_manager
 from app.research_engine import RankingMetric, ResearchConfiguration, ResearchEngine, ResearchReport, ResearchSerializer, StrategyRecord
@@ -34,7 +32,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
-from app.ui.components import ToolbarAction, notify, render_command_bar, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
+from app.ui.components import ToolbarAction, notify, render_command_bar, render_dataset_picker, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
 from app.ui.progress import RESEARCH_STEPS
 
 st.set_page_config(page_title="Research Dashboard - QuantForge AI", page_icon="🧠", layout="wide")
@@ -59,7 +57,6 @@ if "smc_registry" not in st.session_state:
 
 parser = StrategyParser()
 strategy_builder = StrategyBuilder()
-loader = DataLoader()
 job_manager = get_job_manager()
 indicator_engine = IndicatorEngine(registry=st.session_state.indicator_registry)
 smart_money_engine = SmartMoneyEngine(registry=st.session_state.smc_registry)
@@ -83,7 +80,7 @@ with explorer_col:
     choices = st.multiselect("SDL examples", list(examples.keys()), default=list(examples.keys())[:2])
 
     st.header("2. Historical Data")
-    uploaded_file = st.file_uploader("Upload a CSV file (standard or MT5 export format)", type=["csv"])
+    data, dataset_record = render_dataset_picker(page_key="research")
 
     st.header("3. Ranking")
     ranking_metric_label = st.selectbox("Rank by", [m.value for m in RankingMetric])
@@ -125,23 +122,10 @@ with workspace_col:
         st.info("Select at least one SDL example in the Explorer.")
         render_status_bar(module="Research Dashboard", execution_status="Awaiting Selection", **job_manager.status_counts())
         st.stop()
-    if uploaded_file is None:
-        st.info("Upload historical OHLCV data in the Explorer to build and backtest the selected strategies.")
+    if data is None:
+        st.info("Select or upload historical OHLCV data in the Explorer to build and backtest the selected strategies.")
         render_status_bar(module="Research Dashboard", execution_status="Awaiting Data", **job_manager.status_counts())
         st.stop()
-
-    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-        tmp.write(uploaded_file.getvalue())
-        tmp_path = Path(tmp.name)
-
-    try:
-        data = loader.load_csv(tmp_path, clean=True)
-    except CSVFormatError as exc:
-        st.error(f"Could not load historical data: {exc}")
-        render_status_bar(module="Research Dashboard", execution_status="Data Error", **job_manager.status_counts())
-        st.stop()
-    finally:
-        tmp_path.unlink(missing_ok=True)
 
     st.success(f"Loaded {len(data)} candle(s).")
 
@@ -223,7 +207,7 @@ with workspace_col:
 
     if current_job is None or current_job.state != JobState.COMPLETED:
         with info_col:
-            render_runtime_monitor(current_job_id, dataset_label=uploaded_file.name if uploaded_file else None, strategy_label=f"{len(choices)} strategy(ies)")
+            render_runtime_monitor(current_job_id, dataset_label=dataset_record.filename if dataset_record else None, strategy_label=f"{len(choices)} strategy(ies)")
         if current_job is not None and current_job.state == JobState.FAILED:
             st.error(f"Research failed: {current_job.error}")
         render_status_bar(module="Research Dashboard", execution_status=current_job.state.value if current_job else "Ready", job=current_job, **job_manager.status_counts())
@@ -319,7 +303,7 @@ with info_col:
             ("Top strategy", summary["top_strategy_name"] or "—"),
         ],
     )
-    render_runtime_monitor(current_job.id, dataset_label=uploaded_file.name if uploaded_file else None, strategy_label=f"{len(choices)} strategy(ies)")
+    render_runtime_monitor(current_job.id, dataset_label=dataset_record.filename if dataset_record else None, strategy_label=f"{len(choices)} strategy(ies)")
 
 render_status_bar(
     module="Research Dashboard",

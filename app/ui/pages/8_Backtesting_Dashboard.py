@@ -43,7 +43,6 @@ requirement to never remove `st.stop()` when validation genuinely fails.
 """
 
 import re
-import tempfile
 import traceback
 from pathlib import Path
 
@@ -52,7 +51,7 @@ import streamlit as st
 
 from app.backtesting_engine import BacktestConfiguration, BacktestingEngine, TradeJournal
 from app.config.settings import get_settings
-from app.data_engine import CSVFormatError, DataLoader
+from app.data_engine import DataLoader
 from app.indicator_engine import IndicatorEngine, IndicatorRegistry
 from app.sdl import StrategyParser
 from app.sdl import StrategyValidator as SDLValidator
@@ -60,7 +59,7 @@ from app.sdl.exceptions import SDLParseError
 from app.job_manager import JobCategory, JobState, get_job_manager
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
-from app.ui.components import ToolbarAction, notify, render_command_bar, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
+from app.ui.components import ToolbarAction, notify, render_command_bar, render_dataset_picker, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
 from app.ui.dataset_detection import detect_mismatch, detect_symbol, detect_timeframe
 from app.ui.progress import BACKTEST_STEPS
 from app.ui.state import clear_dataset, has_dataset, load_dataset, load_metadata, render_debug_banner, render_debug_panel, save_dataset
@@ -329,25 +328,14 @@ with explorer_col:
             clear_dataset()
             st.rerun()
     else:
-        uploaded_file = st.file_uploader("Upload a CSV file (standard or MT5 export format)", type=["csv"])
-        data = None
-        if uploaded_file is not None:
-            dataset_filename = uploaded_file.name
-            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-                tmp.write(uploaded_file.getvalue())
-                tmp_path = Path(tmp.name)
-            try:
-                data = loader.load_csv(tmp_path, clean=True)
-            except CSVFormatError as exc:
-                st.error(f"Could not load historical data: {exc}")
-            else:
-                # Persist here too, so every other page picks up this same
-                # dataset without requiring its own upload -- the Historical
-                # Data page isn't the only entry point that can load data.
-                save_dataset(data, filename=uploaded_file.name, statistics=loader.statistics(data))
-                dataset_metadata = load_metadata()
-            finally:
-                tmp_path.unlink(missing_ok=True)
+        data, dataset_record = render_dataset_picker(page_key="backtesting")
+        if data is not None:
+            dataset_filename = dataset_record.filename
+            # Persist here too, so every other page picks up this same
+            # dataset without requiring its own upload -- the Historical
+            # Data page isn't the only entry point that can load data.
+            save_dataset(data, filename=dataset_record.filename, symbol=dataset_record.symbol, timeframe=dataset_record.timeframe, statistics=loader.statistics(data))
+            dataset_metadata = load_metadata()
 
 if DEBUG:
     render_debug_banner(banner_slot)

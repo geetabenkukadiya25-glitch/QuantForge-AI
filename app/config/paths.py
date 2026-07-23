@@ -86,6 +86,25 @@ class Paths:
     runtime_dir: Path
     jobs_history_dir: Path
 
+    dataset_manager_dir: Path
+    dataset_registry_dir: Path
+    dataset_manager_state_dir: Path
+
+    data_catalog_dir: Path
+    data_catalog_state_dir: Path
+
+    workflow_dir: Path
+    workflow_state_dir: Path
+
+    risk_analytics_dir: Path
+    risk_analytics_state_dir: Path
+
+    governance_dir: Path
+    governance_state_dir: Path
+
+    settings_center_dir: Path
+    settings_center_state_dir: Path
+
 
 @lru_cache
 def get_paths() -> Paths:
@@ -141,6 +160,19 @@ def get_paths() -> Paths:
         logs_dir=PROJECT_ROOT / "logs",
         runtime_dir=app_dir / "runtime",
         jobs_history_dir=app_dir / "runtime" / "jobs",
+        dataset_manager_dir=app_dir / "dataset_manager",
+        dataset_registry_dir=app_dir / "dataset_manager" / "registry",
+        dataset_manager_state_dir=app_dir / "dataset_manager" / "state",
+        data_catalog_dir=app_dir / "data_catalog",
+        data_catalog_state_dir=app_dir / "data_catalog" / "state",
+        workflow_dir=app_dir / "workflow",
+        workflow_state_dir=app_dir / "workflow" / "state",
+        risk_analytics_dir=app_dir / "risk_analytics",
+        risk_analytics_state_dir=app_dir / "risk_analytics" / "state",
+        governance_dir=app_dir / "governance",
+        governance_state_dir=app_dir / "governance" / "state",
+        settings_center_dir=app_dir / "settings_center",
+        settings_center_state_dir=app_dir / "settings_center" / "state",
     )
 
     for directory in (
@@ -166,6 +198,13 @@ def get_paths() -> Paths:
         paths.database_dir,
         paths.logs_dir,
         paths.jobs_history_dir,
+        paths.dataset_registry_dir,
+        paths.dataset_manager_state_dir,
+        paths.data_catalog_state_dir,
+        paths.workflow_state_dir,
+        paths.risk_analytics_state_dir,
+        paths.governance_state_dir,
+        paths.settings_center_state_dir,
     ):
         directory.mkdir(parents=True, exist_ok=True)
 

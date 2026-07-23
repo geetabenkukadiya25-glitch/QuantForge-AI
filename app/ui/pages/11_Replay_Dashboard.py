@@ -26,14 +26,12 @@ operation on this page, so it now goes through `JobManager.submit(...)`
 like every other dashboard's primary action.
 """
 
-import tempfile
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
 from app.backtesting_engine import BacktestConfiguration, BacktestContext, BacktestRunner
-from app.data_engine import CSVFormatError, DataLoader
 from app.indicator_engine import IndicatorEngine, IndicatorRegistry
 from app.job_manager import JobCategory, JobState, get_job_manager
 from app.replay_engine import ReplayConfiguration, ReplayEngine, ReplayEventType, ReplayReport, ReplaySerializer, ReplaySpeed
@@ -42,7 +40,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
-from app.ui.components import ToolbarAction, notify, render_command_bar, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
+from app.ui.components import ToolbarAction, notify, render_command_bar, render_dataset_picker, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
 from app.ui.progress import ProgressTracker, REPLAY_STEPS, tracked_step
 
 st.set_page_config(page_title="Replay Dashboard - QuantForge AI", page_icon="🎬", layout="wide")
@@ -67,7 +65,6 @@ if "smc_registry" not in st.session_state:
 
 parser = StrategyParser()
 strategy_builder = StrategyBuilder()
-loader = DataLoader()
 job_manager = get_job_manager()
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "sdl" / "examples"
@@ -85,7 +82,7 @@ with info_col:
 with explorer_col:
     st.subheader("Explorer")
     st.header("1. Historical Data (required)")
-    uploaded_file = st.file_uploader("Upload a CSV file (standard or MT5 export format)", type=["csv"])
+    data, dataset_record = render_dataset_picker(page_key="replay")
 
     st.header("2. Strategy Overlay (optional)")
     overlay_strategy = st.checkbox("Overlay a strategy's indicators + a backtest's trades", value=True)
@@ -107,23 +104,10 @@ with workspace_col:
     if toolbar_clicked.get("refresh"):
         st.rerun()
 
-    if uploaded_file is None:
-        st.info("Upload historical OHLCV data in the Explorer to start a replay.")
+    if data is None:
+        st.info("Select or upload historical OHLCV data in the Explorer to start a replay.")
         render_status_bar(module="Replay Dashboard", execution_status="Awaiting Data")
         st.stop()
-
-    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-        tmp.write(uploaded_file.getvalue())
-        tmp_path = Path(tmp.name)
-
-    try:
-        data = loader.load_csv(tmp_path, clean=True)
-    except CSVFormatError as exc:
-        st.error(f"Could not load historical data: {exc}")
-        render_status_bar(module="Replay Dashboard", execution_status="Data Error")
-        st.stop()
-    finally:
-        tmp_path.unlink(missing_ok=True)
 
     st.success(f"Loaded {len(data)} candle(s).")
 

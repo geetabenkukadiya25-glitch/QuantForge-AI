@@ -17,14 +17,12 @@ became `st.X(...)` inside a `with explorer_col:` block, and "Run
 Optimization + Validation" moved into the toolbar as "Run".
 """
 
-import tempfile
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
 from app.backtesting_engine import BacktestConfiguration
-from app.data_engine import CSVFormatError, DataLoader
 from app.indicator_engine import IndicatorEngine, IndicatorRegistry
 from app.optimization_engine import (
     Objective,
@@ -42,7 +40,7 @@ from app.sdl import StrategyValidator as SDLValidator
 from app.sdl.exceptions import SDLParseError
 from app.smart_money_engine import SMCRegistry, SmartMoneyEngine
 from app.strategy_builder import StrategyBuilder, StrategyContext
-from app.ui.components import ToolbarAction, notify, render_command_bar, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
+from app.ui.components import ToolbarAction, notify, render_command_bar, render_dataset_picker, render_info_card, render_notification_center, render_runtime_monitor, render_shell, render_status_bar, render_toolbar
 from app.ui.progress import VALIDATION_STEPS
 from app.validation_engine import (
     MonteCarloConfiguration,
@@ -76,7 +74,6 @@ if "smc_registry" not in st.session_state:
 
 parser = StrategyParser()
 strategy_builder = StrategyBuilder()
-loader = DataLoader()
 job_manager = get_job_manager()
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "sdl" / "examples"
@@ -152,7 +149,7 @@ with info_col:
 
 with explorer_col:
     st.header("2. Historical Data")
-    uploaded_file = st.file_uploader("Upload a CSV file (standard or MT5 export format)", type=["csv"])
+    data, dataset_record = render_dataset_picker(page_key="validation")
 
     st.header("3. Base Execution Assumptions")
     symbol = st.selectbox("Symbol", base_model.context_requirement.symbols)
@@ -218,23 +215,10 @@ def _build_parameter_space(rows: pd.DataFrame) -> ParameterSpace:
 
 
 with workspace_col:
-    if uploaded_file is None:
-        st.info("Upload historical OHLCV data in the Explorer to run optimization + validation.")
+    if data is None:
+        st.info("Select or upload historical OHLCV data in the Explorer to run optimization + validation.")
         render_status_bar(module="Validation Dashboard", strategy_status=base_model.metadata.name, execution_status="Awaiting Data", **job_manager.status_counts())
         st.stop()
-
-    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-        tmp.write(uploaded_file.getvalue())
-        tmp_path = Path(tmp.name)
-
-    try:
-        data = loader.load_csv(tmp_path, clean=True)
-    except CSVFormatError as exc:
-        st.error(f"Could not load historical data: {exc}")
-        render_status_bar(module="Validation Dashboard", strategy_status=base_model.metadata.name, execution_status="Data Error", **job_manager.status_counts())
-        st.stop()
-    finally:
-        tmp_path.unlink(missing_ok=True)
 
     base_configuration = BacktestConfiguration(
         symbol=symbol, timeframe=timeframe, stop_loss_points=stop_loss_points or None, take_profit_points=take_profit_points or None,
@@ -302,7 +286,7 @@ with workspace_col:
 
     if current_job is None or current_job.state != JobState.COMPLETED:
         with info_col:
-            render_runtime_monitor(current_job_id, dataset_label=uploaded_file.name if uploaded_file else None, strategy_label=base_model.metadata.name)
+            render_runtime_monitor(current_job_id, dataset_label=dataset_record.filename if dataset_record else None, strategy_label=base_model.metadata.name)
         if current_job is not None and current_job.state == JobState.FAILED:
             st.error(f"Validation failed: {current_job.error}")
         render_status_bar(
@@ -374,7 +358,7 @@ with info_col:
             ("Robustness score", f"{summary['robustness_score']:.3f}" if summary["robustness_score"] is not None else "—"),
         ],
     )
-    render_runtime_monitor(current_job.id, dataset_label=uploaded_file.name if uploaded_file else None, strategy_label=base_model.metadata.name)
+    render_runtime_monitor(current_job.id, dataset_label=dataset_record.filename if dataset_record else None, strategy_label=base_model.metadata.name)
 
 render_status_bar(
     module="Validation Dashboard",

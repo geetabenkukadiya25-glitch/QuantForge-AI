@@ -90,6 +90,20 @@ app/strategies/autosave/*
 !app/strategies/autosave/.gitkeep
 app/runtime/jobs/*
 !app/runtime/jobs/.gitkeep
+app/dataset_manager/registry/*
+!app/dataset_manager/registry/.gitkeep
+app/dataset_manager/state/*
+!app/dataset_manager/state/.gitkeep
+app/data_catalog/state/*
+!app/data_catalog/state/.gitkeep
+app/workflow/state/*
+!app/workflow/state/.gitkeep
+app/risk_analytics/state/*
+!app/risk_analytics/state/.gitkeep
+app/governance/state/*
+!app/governance/state/.gitkeep
+app/settings_center/state/*
+!app/settings_center/state/.gitkeep
 
 # --- OS ------------------------------------------------------------------------
 .DS_Store

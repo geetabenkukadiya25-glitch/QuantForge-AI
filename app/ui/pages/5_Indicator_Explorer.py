@@ -19,20 +19,16 @@ Workspace. No `IndicatorEngine` call changed -- only where each already-
 existing block renders.
 """
 
-import tempfile
-from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
-from app.data_engine import CSVFormatError, DataLoader
 from app.indicator_engine import (
     IndicatorContext,
     IndicatorEngine,
     IndicatorSerializer,
     IndicatorValidationError,
 )
-from app.ui.components import ToolbarAction, render_command_bar, render_info_card, render_notification_center, render_shell, render_status_bar, render_toolbar
+from app.ui.components import ToolbarAction, render_command_bar, render_dataset_picker, render_info_card, render_notification_center, render_shell, render_status_bar, render_toolbar
 
 st.set_page_config(page_title="Indicator Explorer - QuantForge AI", page_icon="📐", layout="wide")
 
@@ -48,7 +44,6 @@ if "indicator_engine" not in st.session_state:
     st.session_state.indicator_engine = IndicatorEngine()
 engine: IndicatorEngine = st.session_state.indicator_engine
 serializer = IndicatorSerializer()
-loader = DataLoader()
 
 explorer_col, workspace_col, info_col = render_shell()
 
@@ -107,24 +102,12 @@ with workspace_col:
         st.rerun()
 
     st.subheader("Calculation Preview")
-    uploaded_file = st.file_uploader("CSV file (standard or MT5 export format)", type=["csv"])
+    df, dataset_record = render_dataset_picker(page_key="indicator_explorer")
 
-    if uploaded_file is None:
-        st.info("Upload a CSV file to preview an indicator calculation.")
+    if df is None:
+        st.info("Select or upload a dataset to preview an indicator calculation.")
         render_status_bar(module="Indicator Explorer", execution_status="Awaiting Data")
         st.stop()
-
-    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-        tmp.write(uploaded_file.getvalue())
-        tmp_path = Path(tmp.name)
-    try:
-        df = loader.load_csv(tmp_path)
-    except CSVFormatError as exc:
-        st.error(f"Could not load file: {exc}")
-        render_status_bar(module="Indicator Explorer", execution_status="Data Error")
-        st.stop()
-    finally:
-        tmp_path.unlink(missing_ok=True)
 
     enabled_indicators = engine.list_indicators(include_disabled=False)
     indicator_name = st.selectbox("Indicator", [m.name for m in enabled_indicators])

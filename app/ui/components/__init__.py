@@ -12,6 +12,7 @@ business-logic module -- they only read state a page already computes
 
 from app.ui.components.cards import render_info_card, render_list_card
 from app.ui.components.command_bar import render_command_bar
+from app.ui.components.dataset_picker import render_dataset_picker
 from app.ui.components.job_panel import render_job_panel
 from app.ui.components.layout import ToolbarAction, render_shell, render_toolbar
 from app.ui.components.notifications import notify, render_notification_center
@@ -23,6 +24,7 @@ __all__ = [
     "render_info_card",
     "render_list_card",
     "render_command_bar",
+    "render_dataset_picker",
     "render_job_panel",
     "ToolbarAction",
     "render_shell",

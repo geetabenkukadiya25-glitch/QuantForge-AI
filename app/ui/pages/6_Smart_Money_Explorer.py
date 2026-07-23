@@ -20,16 +20,12 @@ Workspace. No `SmartMoneyEngine` call changed -- only where each already-
 existing block renders.
 """
 
-import tempfile
-from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
 from app.chart_engine import ChartConfig, ChartEngine, DrawingManager, HorizontalLine, Rectangle
-from app.data_engine import CSVFormatError, DataLoader
 from app.smart_money_engine import SMCContext, SmartMoneyEngine, SMCValidationError
-from app.ui.components import ToolbarAction, render_command_bar, render_info_card, render_notification_center, render_shell, render_status_bar, render_toolbar
+from app.ui.components import ToolbarAction, render_command_bar, render_dataset_picker, render_info_card, render_notification_center, render_shell, render_status_bar, render_toolbar
 
 st.set_page_config(page_title="Smart Money Explorer - QuantForge AI", page_icon="🧠", layout="wide")
 
@@ -47,7 +43,6 @@ st.caption(
 if "smc_engine" not in st.session_state:
     st.session_state.smc_engine = SmartMoneyEngine()
 engine: SmartMoneyEngine = st.session_state.smc_engine
-loader = DataLoader()
 chart_engine = ChartEngine()
 
 explorer_col, workspace_col, info_col = render_shell()
@@ -107,24 +102,12 @@ with workspace_col:
         st.rerun()
 
     st.subheader("Detection Preview")
-    uploaded_file = st.file_uploader("CSV file (standard or MT5 export format)", type=["csv"])
+    df, dataset_record = render_dataset_picker(page_key="smart_money_explorer")
 
-    if uploaded_file is None:
-        st.info("Upload a CSV file to preview a detector run.")
+    if df is None:
+        st.info("Select or upload a dataset to preview a detector run.")
         render_status_bar(module="Smart Money Explorer", execution_status="Awaiting Data")
         st.stop()
-
-    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-        tmp.write(uploaded_file.getvalue())
-        tmp_path = Path(tmp.name)
-    try:
-        df = loader.load_csv(tmp_path)
-    except CSVFormatError as exc:
-        st.error(f"Could not load file: {exc}")
-        render_status_bar(module="Smart Money Explorer", execution_status="Data Error")
-        st.stop()
-    finally:
-        tmp_path.unlink(missing_ok=True)
 
     enabled_detectors = engine.list_detectors(include_disabled=False)
     detector_name = st.selectbox("Detector", [m.name for m in enabled_detectors])

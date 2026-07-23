@@ -11,9 +11,6 @@ other dashboard (e.g. Backtesting) without re-uploading -- until the user
 loads a different file or explicitly clears it.
 """
 
-import tempfile
-from pathlib import Path
-
 import streamlit as st
 
 from app.data_engine import (
@@ -22,6 +19,7 @@ from app.data_engine import (
     DataLoader,
     generate_quality_report,
 )
+from app.dataset_manager import DatasetManager
 from app.ui.components import (
     ToolbarAction,
     render_command_bar,
@@ -75,23 +73,25 @@ with explorer_col:
     render_debug_panel()
 
 df, filename, stats = None, None, None
+dataset_manager = DatasetManager()
 
 if uploaded_file is not None:
-    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-        tmp.write(uploaded_file.getvalue())
-        tmp_path = Path(tmp.name)
-
+    # Every upload becomes a managed `DatasetManager` asset (deduped by
+    # content hash) instead of a throwaway temp file -- this is now the
+    # single source of truth every dashboard's dataset picker reads from;
+    # the resolved DataFrame is still handed to `save_dataset()` exactly
+    # as before, so the rest of this page (and every page reading the
+    # shared session slot) is unchanged.
     try:
-        df = loader.load_csv(tmp_path, clean=clean_on_load)
+        record = dataset_manager.import_dataset_from_bytes(uploaded_file.getvalue(), filename=uploaded_file.name, clean=clean_on_load)
     except CSVFormatError as exc:
         st.error(f"Could not load file: {exc}")
-        df = None
     else:
-        filename = uploaded_file.name
+        dataset_manager.record_used(record.id)
+        df = dataset_manager.load_dataframe(record.id)
+        filename = record.filename
         stats = loader.statistics(df)
-        save_dataset(df, filename=filename, symbol=symbol_label or None, timeframe=stats["detected_timeframe"], statistics=stats)
-    finally:
-        tmp_path.unlink(missing_ok=True)
+        save_dataset(df, filename=filename, symbol=symbol_label or record.symbol, timeframe=record.timeframe or stats["detected_timeframe"], statistics=stats)
 
 elif has_dataset():
     df = load_dataset()

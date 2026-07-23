@@ -5,12 +5,37 @@ upload. Data is removed only by loading a replacement or clicking
 "Clear dataset" -- never implicitly.
 """
 
+import shutil
+
+import pytest
 from streamlit.testing.v1 import AppTest
 
+from app.config.paths import get_paths
 from app.ui.state import DATASET_KEY, METADATA_KEY
 
 HISTORICAL_DATA_PAGE = "app/ui/pages/1_Historical_Data.py"
 BACKTESTING_DASHBOARD_PAGE = "app/ui/pages/8_Backtesting_Dashboard.py"
+
+
+@pytest.fixture(autouse=True)
+def _clean_dataset_registry():
+    """Both pages now source uploads through the real, process-wide
+    `DatasetManager()` (Phase 18.6), which dedups by content hash --
+    without this, two tests uploading the same `sample_csv_bytes` fixture
+    under different filenames would collide, with the second returning
+    the first's already-registered record. The Backtesting Dashboard's
+    direct-upload path also drives `render_dataset_picker`, whose Phase
+    17.5 usage-context hook writes to the real, process-wide
+    `DataCatalog()` -- cleaned up here too so no test leaves catalog state
+    behind either."""
+    paths = get_paths()
+    shutil.rmtree(paths.dataset_registry_dir, ignore_errors=True)
+    shutil.rmtree(paths.dataset_manager_state_dir, ignore_errors=True)
+    shutil.rmtree(paths.data_catalog_state_dir, ignore_errors=True)
+    yield
+    shutil.rmtree(paths.dataset_registry_dir, ignore_errors=True)
+    shutil.rmtree(paths.dataset_manager_state_dir, ignore_errors=True)
+    shutil.rmtree(paths.data_catalog_state_dir, ignore_errors=True)
 
 
 def _upload(at: AppTest, csv_bytes: bytes, filename: str = "eurusd.csv") -> AppTest:

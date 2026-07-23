@@ -11,6 +11,12 @@ import streamlit as st
 
 _ACTIONS: list[tuple[str, str]] = [
     ("Open Job Manager", "pages/18_Job_Manager.py"),
+    ("Open Dataset Manager", "pages/19_Dataset_Manager.py"),
+    ("Open Data Catalog", "pages/20_Data_Catalog.py"),
+    ("Open Workflow Dashboard", "pages/21_Workflow_Dashboard.py"),
+    ("Open Risk Analytics", "pages/22_Risk_Analytics.py"),
+    ("Open Governance", "pages/23_Governance.py"),
+    ("Open Settings Center", "pages/24_Settings_Center.py"),
     ("Open Strategy", "pages/3_Strategy_Library.py"),
     ("Open Dataset", "pages/1_Historical_Data.py"),
     ("Chart Engine", "pages/2_Chart_Engine.py"),
@@ -90,3 +96,71 @@ def render_command_bar(current_page: str) -> None:
             st.caption("Recent Files")
             for path in recent[:5]:
                 st.caption(path.name)
+
+        try:
+            from app.dataset_manager import DatasetManager
+
+            recent_datasets = DatasetManager().list_recent()
+        except Exception:  # noqa: BLE001 -- command bar must never crash a page over an optional recents list
+            recent_datasets = []
+        if recent_datasets:
+            st.divider()
+            st.caption("Recent Datasets")
+            for record in recent_datasets[:5]:
+                st.caption(record.display_name)
+
+        try:
+            from app.data_catalog import DataCatalog
+
+            recently_used = sorted(
+                (e for e in DataCatalog().list_catalog(archived=None) if e.last_used is not None),
+                key=lambda e: e.last_used,
+                reverse=True,
+            )
+        except Exception:  # noqa: BLE001 -- command bar must never crash a page over an optional recents list
+            recently_used = []
+        if recently_used:
+            st.divider()
+            st.caption("Recently Used")
+            for entry in recently_used[:5]:
+                st.caption(entry.display_name)
+
+        try:
+            from app.workflow import WorkflowManager
+
+            recent_workflows = sorted(
+                (w for w in WorkflowManager().list_entries(archived=None)),
+                key=lambda w: w.updated_at,
+                reverse=True,
+            )
+        except Exception:  # noqa: BLE001 -- command bar must never crash a page over an optional recents list
+            recent_workflows = []
+        if recent_workflows:
+            st.divider()
+            st.caption("Recent Workflows")
+            for workflow in recent_workflows[:5]:
+                st.caption(workflow.name)
+
+        try:
+            from app.risk_analytics import get_risk_manager
+
+            recent_reports = get_risk_manager().list_reports()
+        except Exception:  # noqa: BLE001 -- command bar must never crash a page over an optional recents list
+            recent_reports = []
+        if recent_reports:
+            st.divider()
+            st.caption("Recent Risk Reports")
+            for report in recent_reports[:5]:
+                st.caption(report.title)
+
+        try:
+            from app.governance import get_governance_manager
+
+            recent_governance = get_governance_manager().list_entries()
+        except Exception:  # noqa: BLE001 -- command bar must never crash a page over an optional recents list
+            recent_governance = []
+        if recent_governance:
+            st.divider()
+            st.caption("Recent Governance Records")
+            for record in recent_governance[:5]:
+                st.caption(f"{record.object_label or record.object_id} ({record.status.value})")

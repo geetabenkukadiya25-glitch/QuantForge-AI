@@ -38,8 +38,7 @@ from app.chart_engine import (
     VerticalLine,
     resample_ohlcv,
 )
-from app.data_engine import CSVFormatError, DataLoader
-from app.ui.components import ToolbarAction, render_command_bar, render_info_card, render_notification_center, render_shell, render_status_bar, render_toolbar
+from app.ui.components import ToolbarAction, render_command_bar, render_dataset_picker, render_info_card, render_notification_center, render_shell, render_status_bar, render_toolbar
 
 st.set_page_config(page_title="Chart Engine - QuantForge AI", page_icon="📊", layout="wide")
 
@@ -53,8 +52,6 @@ st.caption("Professional candlestick/OHLC charting with drawing tools and sessio
 
 if "drawing_manager" not in st.session_state:
     st.session_state.drawing_manager = DrawingManager()
-
-loader = DataLoader()
 chart_engine = ChartEngine()
 exporter = ExportManager()
 
@@ -62,7 +59,7 @@ explorer_col, workspace_col, info_col = render_shell()
 
 with explorer_col:
     st.subheader("Explorer")
-    uploaded_file = st.file_uploader("CSV file (standard or MT5 export format)", type=["csv"])
+    base_df, dataset_record = render_dataset_picker(page_key="chart_engine")
 
 with workspace_col:
     toolbar_clicked = render_toolbar(
@@ -74,23 +71,10 @@ with workspace_col:
     if toolbar_clicked.get("refresh"):
         st.rerun()
 
-    if uploaded_file is None:
-        st.info("Upload a CSV file in the Explorer to get started.")
+    if base_df is None:
+        st.info("Select or upload a dataset in the Explorer to get started.")
         render_status_bar(module="Chart Engine", execution_status="Awaiting Data")
         st.stop()
-
-    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
-        tmp.write(uploaded_file.getvalue())
-        tmp_path = Path(tmp.name)
-
-    try:
-        base_df = loader.load_csv(tmp_path)
-    except CSVFormatError as exc:
-        st.error(f"Could not load file: {exc}")
-        render_status_bar(module="Chart Engine", execution_status="Data Error")
-        st.stop()
-    finally:
-        tmp_path.unlink(missing_ok=True)
 
     if base_df.empty:
         st.error("No data loaded from this file.")
