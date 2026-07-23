@@ -341,3 +341,157 @@ class MT5ManagerState:
             terminal_path_override=data.get("terminal_path_override"),
             connected_since=datetime.fromisoformat(connected_since) if connected_since else None,
         )
+
+
+# ----------------------------------------------------------------------
+# Phase 19.1 additions -- appended, nothing above this line changed.
+# ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PositionInfo:
+    """Read-only snapshot of one `MetaTrader5.positions_get()` result.
+    Reporting only -- nothing in this package ever closes or modifies a
+    position; there is no such function anywhere in `app.mt5`."""
+
+    ticket: int
+    symbol: str
+    type: int  # 0 = buy, 1 = sell (MetaTrader5.POSITION_TYPE_*)
+    volume: float
+    price_open: float
+    sl: float
+    tp: float
+    price_current: float
+    profit: float
+    swap: float
+    time: datetime
+    magic: int
+    comment: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticket": self.ticket,
+            "symbol": self.symbol,
+            "type": self.type,
+            "volume": self.volume,
+            "price_open": self.price_open,
+            "sl": self.sl,
+            "tp": self.tp,
+            "price_current": self.price_current,
+            "profit": self.profit,
+            "swap": self.swap,
+            "time": self.time.isoformat(),
+            "magic": self.magic,
+            "comment": self.comment,
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "PositionInfo":
+        return PositionInfo(
+            ticket=data.get("ticket", 0),
+            symbol=data.get("symbol", ""),
+            type=data.get("type", 0),
+            volume=data.get("volume", 0.0),
+            price_open=data.get("price_open", 0.0),
+            sl=data.get("sl", 0.0),
+            tp=data.get("tp", 0.0),
+            price_current=data.get("price_current", 0.0),
+            profit=data.get("profit", 0.0),
+            swap=data.get("swap", 0.0),
+            time=datetime.fromisoformat(data["time"]),
+            magic=data.get("magic", 0),
+            comment=data.get("comment", ""),
+        )
+
+
+@dataclass(frozen=True)
+class OrderInfo:
+    """Read-only snapshot of one `MetaTrader5.orders_get()` (pending
+    order) result. Reporting only -- nothing in this package ever
+    places, modifies, or cancels an order."""
+
+    ticket: int
+    symbol: str
+    type: int  # MetaTrader5.ORDER_TYPE_*
+    state: int  # MetaTrader5.ORDER_STATE_*
+    volume_current: float
+    price_open: float
+    sl: float
+    tp: float
+    price_current: float
+    time_setup: datetime
+    magic: int
+    comment: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticket": self.ticket,
+            "symbol": self.symbol,
+            "type": self.type,
+            "state": self.state,
+            "volume_current": self.volume_current,
+            "price_open": self.price_open,
+            "sl": self.sl,
+            "tp": self.tp,
+            "price_current": self.price_current,
+            "time_setup": self.time_setup.isoformat(),
+            "magic": self.magic,
+            "comment": self.comment,
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "OrderInfo":
+        return OrderInfo(
+            ticket=data.get("ticket", 0),
+            symbol=data.get("symbol", ""),
+            type=data.get("type", 0),
+            state=data.get("state", 0),
+            volume_current=data.get("volume_current", 0.0),
+            price_open=data.get("price_open", 0.0),
+            sl=data.get("sl", 0.0),
+            tp=data.get("tp", 0.0),
+            price_current=data.get("price_current", 0.0),
+            time_setup=datetime.fromisoformat(data["time_setup"]),
+            magic=data.get("magic", 0),
+            comment=data.get("comment", ""),
+        )
+
+
+@dataclass
+class BridgeExchangeState:
+    """The small piece of persisted state `BridgeExchangeManager` keeps
+    -- export/import counters and last-activity timestamps -- in its own
+    file, deliberately separate from `MT5ManagerState`'s, so that
+    dataclass's existing schema is never touched. (Phase 19.1, additive.)"""
+
+    export_count: int = 0
+    import_count: int = 0
+    last_export_at: datetime | None = None
+    last_import_at: datetime | None = None
+    last_validation_at: datetime | None = None
+    last_validation_ok: bool | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "export_count": self.export_count,
+            "import_count": self.import_count,
+            "last_export_at": self.last_export_at.isoformat() if self.last_export_at else None,
+            "last_import_at": self.last_import_at.isoformat() if self.last_import_at else None,
+            "last_validation_at": self.last_validation_at.isoformat() if self.last_validation_at else None,
+            "last_validation_ok": self.last_validation_ok,
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "BridgeExchangeState":
+        def _opt_dt(key: str) -> datetime | None:
+            value = data.get(key)
+            return datetime.fromisoformat(value) if value else None
+
+        return BridgeExchangeState(
+            export_count=data.get("export_count", 0),
+            import_count=data.get("import_count", 0),
+            last_export_at=_opt_dt("last_export_at"),
+            last_import_at=_opt_dt("last_import_at"),
+            last_validation_at=_opt_dt("last_validation_at"),
+            last_validation_ok=data.get("last_validation_ok"),
+        )

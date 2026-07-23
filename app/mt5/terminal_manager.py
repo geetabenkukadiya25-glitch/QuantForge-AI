@@ -24,7 +24,9 @@ from app.mt5.diagnostics import DiagnosticsReport, run_diagnostics
 from app.mt5.exceptions import MT5Error
 from app.mt5.history_manager import copy_rates_range
 from app.mt5.market_watch import DepthLevel, QuoteSnapshot, get_market_depth, get_quote
-from app.mt5.mt5_models import AccountInfo, Bar, ConnectionState, HealthSnapshot, MT5ManagerState, SymbolInfo, TerminalInfo, Tick
+from app.mt5.mt5_models import AccountInfo, Bar, ConnectionState, HealthSnapshot, MT5ManagerState, OrderInfo, PositionInfo, SymbolInfo, TerminalInfo, Tick
+from app.mt5.order_reader import get_orders
+from app.mt5.position_reader import get_positions
 from app.mt5.symbol_manager import get_symbol_info, list_symbols
 from app.mt5.terminal_discovery import discover_terminals
 from app.mt5.terminal_health import build_health_snapshot
@@ -161,6 +163,39 @@ class MT5Manager:
 
     def get_market_depth(self, symbol: str) -> list[DepthLevel]:
         return get_market_depth(self._connection, symbol)
+
+    def get_positions(self, symbol: str | None = None) -> list[PositionInfo]:
+        """Phase 19.1, additive -- open positions, reporting only. There
+        is no method anywhere in this class (or this package) that
+        closes, modifies, or hedges a position."""
+        return get_positions(self._connection, symbol)
+
+    def get_orders(self, symbol: str | None = None) -> list[OrderInfo]:
+        """Phase 19.1, additive -- pending orders, reporting only. There
+        is no method anywhere in this class (or this package) that
+        places, modifies, or cancels an order."""
+        return get_orders(self._connection, symbol)
+
+    def get_recent_history(self, symbol: str, timeframe: str, count: int) -> list[Bar]:
+        """Phase 19.1, additive -- a small, synchronous, bounded history
+        read (for the JSON Bridge export). `submit_history_sync` remains
+        the entry point for a large/long range submitted via
+        `JobManager`; this is for a quick "last N bars" snapshot."""
+        from datetime import timedelta
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        bars = copy_rates_range(self._connection, symbol, timeframe, now - timedelta(days=max(1, count // 24 + 1)), now)
+        self._last_history_sync_at = datetime.now(timezone.utc)
+        return bars[-count:]
+
+    def get_recent_ticks(self, symbol: str, count: int) -> list[Tick]:
+        """Phase 19.1, additive -- a small, synchronous, bounded tick
+        read, mirroring `get_recent_history` above."""
+        from datetime import timedelta
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        ticks = copy_ticks_range(self._connection, symbol, now - timedelta(minutes=max(1, count // 10 + 1)), now)
+        return ticks[-count:]
 
     def get_health_snapshot(self) -> HealthSnapshot:
         terminal_build = self._current_terminal_build()

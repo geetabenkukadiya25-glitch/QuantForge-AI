@@ -41,3 +41,9 @@ class MT5SymbolNotFoundError(MT5Error):
 
 class InvalidConnectionTransitionError(MT5Error):
     """Attempted an illegal `ConnectionState` transition."""
+
+
+class BridgeImportError(MT5Error):
+    """Raised by `bridge_import.parse_import` for an unknown import kind
+    or a payload carrying a forbidden trade-related keyword -- a hard
+    rejection, never a silently-ignored one. (Phase 19.1, additive.)"""

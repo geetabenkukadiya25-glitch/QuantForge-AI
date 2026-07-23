@@ -19,6 +19,7 @@ _ACTIONS: list[tuple[str, str]] = [
     ("Open Settings Center", "pages/24_Settings_Center.py"),
     ("Open Cloud Sync", "pages/25_Cloud_Sync.py"),
     ("Open MT5 Integration", "pages/26_MT5_Integration.py"),
+    ("Open MT5 JSON Bridge", "pages/27_MT5_JSON_Bridge.py"),
     ("Open Strategy", "pages/3_Strategy_Library.py"),
     ("Open Dataset", "pages/1_Historical_Data.py"),
     ("Chart Engine", "pages/2_Chart_Engine.py"),
